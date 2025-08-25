@@ -1,4 +1,5 @@
 
+
 ##
 ## Sumo ELO calculations
 ## copyright Ryan McCorvie 2025
@@ -8,6 +9,10 @@
 # https://sumodb.sumogames.de/Rikishi.aspx
 # https://www.sumo-api.com/
 
+library(plotly)
+
+direction_factor <- factor( c("West", "East"), ordered =T)
+rank_factor      <- factor( c( "Makushita", "Juryo", "Maegashira", "Komusubi", "Sekiwake", "Ozeki", "Yokozuna" ), ordered = T)
 
 rikishi_names <- list()
 sumo_name <- \( rikishi_id )
@@ -18,7 +23,7 @@ sumo_name <- \( rikishi_id )
   
   qq    <- GET(paste0(base_url, "/api/rikishi/", rikishi_id))
   stats <- fromJSON(rawToChar(qq$content))
-  rikishi_names[[ as.character( rikishi_id)]] <- stats$shikonaEn
+  rikishi_names[[ as.character( rikishi_id)]] <<- stats$shikonaEn
   stats$shikonaEn
 }
 
@@ -31,7 +36,7 @@ sumo_rank <- \(rikishi_id)
   
   qq    <- GET(paste0(base_url, "/api/rikishi/", rikishi_id))
   stats <- fromJSON(rawToChar(qq$content))
-  rikishi_names[[ as.character( rikishi_id)]] <- stats$currentRank
+  rikishi_ranks[[ as.character( rikishi_id)]] <<- stats$currentRank
   stats$currentRank
 }
 
@@ -114,26 +119,39 @@ rikishi_id <- 8850
 
 
 last_tournament <- filter( elo_history, year==2025, month==7, day==1 )  |>  rowwise() |>
-  mutate( shikona = sumo_name( rikishiId), rank = sumo_rank( rikishiId )) |> 
+  mutate( shikona = sumo_name( rikishiId), rank_text = sumo_rank( rikishiId )) |> 
   group_by( .drop = T ) |> 
-  arrange(new_elo) 
-  
+  left_join( current_elo, by = "rikishiId" ) |> 
+  rename( post_tournament_elo = elo )
 
-
-direction_factor <- factor( c("West", "East"))
-rank_factor      <- factor( c( "Makushita", "Juryo", "Maegashira", "Komusubi", "Sekiwake", "Ozeki", "Yokozuna" ))
-
-rank_table <- str_split( last_tournament$rank, " ", simplify = T)
+rank_table <- str_split( last_tournament$rank_text, " ", simplify = T)
 colnames( rank_table ) <- c( "rank_name", "rank_number", "direction")
 rank_table <- as_tibble( rank_table ) |> mutate( rank_number = as.numeric( rank_number))
 rank_table$rank_name <- factor( rank_table$rank_name, rank_factor )
 rank_table$direction <- factor( rank_table$direction, direction_factor )
 
-last_tournament0 <- last_tournament |> bind_cols(  rank_table ) |> 
-  arrange( rank_name, -rank_number, direction ) |> 
-  mutate( rank=1:n())
+last_tournament <- last_tournament |> bind_cols(  rank_table ) |> 
+  arrange( rank_name, -rank_number, direction ) 
 
-ggplot( last_tournament0, aes( rank, old_elo, color=rank_name)) + geom_point(size=3) + theme_minimal() + scale_color_brewer( palette ="Set2") +
+last_tournament0 <- mutate( last_tournament, rank=1:n())
+
+ggplot( last_tournament0, aes( rank, post_tournament_elo, color=rank_name)) + geom_point(size=3) + theme_minimal() + scale_color_brewer( palette ="Set2") +
   labs( title = "ELO vs. Sumo Association Rank")
 
-filter( last_tournament0, new_elo > 2000)
+# tournament movement
+
+last_tournament0 <- filter( last_tournament0, rank_name != "Makushita" ) |> mutate( rank=1:n())
+
+
+pp<- ggplot( last_tournament0, aes( rank, post_tournament_elo, color=rank_name, text=shikona)) + 
+  geom_segment( aes( x=rank, y=old_elo, xend=rank, yend = post_tournament_elo), arrow=arrow(length=unit(0.1, "inches"))) +
+  geom_point(size=2) + 
+  theme_minimal() + scale_color_brewer( palette ="Set2") +
+  labs( title = "Elo movement in last tournament")
+
+ggplotly(pp, tooltip = "text")
+
+
+last_tournament0 |> mutate( elo_change = post_tournament_elo-old_elo ) |> arrange( -elo_change) |> 
+  select( shikona, rank_text, elo_change, old_elo, post_tournament_elo) |> 
+  print( n=20)
