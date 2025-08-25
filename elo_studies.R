@@ -80,10 +80,14 @@ buckets = 20
 calibration_plot <- elo_history |> 
   mutate( quantile = floor(pwin*buckets) ) |> 
   group_by( quantile ) |> 
-  summarize( win=mean(win), cnt=n()) |> 
+  summarize( win=mean(win), cnt=n(), win_std = win*(1-win)/sqrt( cnt)) |> 
   mutate( quantile = (quantile +0.5)/ buckets)
 
-ggplot( calibration_plot, aes( quantile, win)) + geom_point() +geom_line( aes(quantile, quantile), color="lightblue") 
+ggplot( calibration_plot, aes( quantile, win)) + 
+  geom_errorbar(aes( min=win-2*win_std, max = win+2*win_std), color="plum")+
+  geom_point( size=1) +
+  geom_line( aes(quantile, quantile), color="lightblue") +
+  theme_minimal()
 
 
 #anti_join( current_elo, rename( rikishis_t, rikishiId = id ), by = "rikishiId")
