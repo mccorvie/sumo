@@ -1,15 +1,19 @@
-#  https://sumodb.sumogames.de/Rikishi.aspx
+
+##
+## Sumo ELO calculations
+## copyright Ryan McCorvie 2025
+##
+
+# online sources for sumo data
+# https://sumodb.sumogames.de/Rikishi.aspx
 # https://www.sumo-api.com/
 
 library( tidyverse )
 library(httr)
 library(jsonlite)
 
-base_url <- "https://www.sumo-api.com"
 
-matches_cache <<- list()
-
-divisions <- c( "juryo", "makuuchi" )
+divisions <- c( "juryo", "makuuchi", "makushita" )
 months <- seq(1,11, 2)
 days   <- 1:15
 
@@ -18,6 +22,9 @@ get_basho_id <- \( year, month )
   sprintf( "%04d%02d",year, month)
 }
 
+base_url <- "https://www.sumo-api.com"
+
+matches_cache <<- list()
 get_matches <- \( basho_id, day, division )
 {
   key <- paste0( basho_id, "-", sprintf( "%02d", day), "-", str_to_lower( division ))
@@ -42,13 +49,12 @@ elo_to_pwin <- \( elo1, elo2 )
 
 elo_history <- tibble()  
 current_elo <- tibble( rikishiId = as.numeric(NULL), elo=as.numeric(NULL))
-learning_rate = 32
+learning_rate = 20
 
 # year = 2024
 # month = 11
 # day = 2
 # divisions = c( "juryu", "makuuchi" )
-
 
 
 for( year in 2000:2025 )
@@ -92,7 +98,7 @@ for( year in 2000:2025 )
           ) 
         
         
-        elo_history <- bind_rows( elo_history, select( elo_update, rikishiId, win, old_elo= elo, elo=new_elo, opponent_elo, year, month, day ))
+        elo_history <- bind_rows( elo_history, select( elo_update, rikishiId, win, pwin, old_elo= elo, new_elo, opponent_elo, year, month, day ))
         
         current_elo <- select( elo_update, rikishiId, elo=new_elo ) |> 
           bind_rows( anti_join( current_elo, elo_update, by = "rikishiId"))
@@ -100,9 +106,4 @@ for( year in 2000:2025 )
       }
     }
   }
-
-
-
-
-
 
