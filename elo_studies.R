@@ -67,6 +67,8 @@ rikishiId =    8 # Kotoshoho
 rikishiId =   74 # Atamifuji   
 rikishiId =   11 # Ichiyamamoto
 rikishiId = 8853 # Onokatsu 
+rikishiId =   19 # Hoshoryu
+
 
 rikishiId = 3114 # lowest ever elo
 rikishiId = 2 # asanoyama, got a covid suspension
@@ -152,6 +154,6 @@ pp<- ggplot( last_tournament0, aes( rank, post_tournament_elo, color=rank_name, 
 ggplotly(pp, tooltip = "text")
 
 
-last_tournament0 |> mutate( elo_change = post_tournament_elo-old_elo ) |> arrange( -elo_change) |> 
+last_tournament0 |> mutate( elo_change = post_tournament_elo-old_elo ) |> arrange( elo_change) |> 
   select( shikona, rank_text, elo_change, old_elo, post_tournament_elo) |> 
   print( n=20)
