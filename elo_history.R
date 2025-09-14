@@ -24,9 +24,12 @@ get_basho_id <- \( year, month )
 
 base_url <- "https://www.sumo-api.com"
 
-matches_cache <<- list()
+#matches_cache <<- list()
 get_matches <- \( basho_id, day, division )
 {
+  if( !exists( "matches_cache"))
+    matches_cache <<-list()
+  
   key <- paste0( basho_id, "-", sprintf( "%02d", day), "-", str_to_lower( division ))
   
   torikumi <- matches_cache[[key]]
@@ -48,18 +51,22 @@ elo_to_pwin <- \( elo1, elo2 )
 }
 
 elo_history <- tibble()  
-current_elo <- tibble( rikishiId = as.numeric(NULL), elo=as.numeric(NULL))
-learning_rate = 20
+current_elo <- tibble( rikishiId = as.numeric(NULL), elo=as.numeric(NULL), old_elo=as.numeric( NULL))
+learning_rate = 10
+momentum_rate = 0.30
+
+
 
 # year = 2024
 # month = 11
 # day = 2
 # divisions = c( "juryu", "makuuchi" )
 
-
 for( year in 2000:2025 )
   for( month in months )
   {
+    if( year == 2025 && month > 7 ) next
+    
     cat( "\n", get_basho_id( year, month ), " " )
     for( day in days )
     {
@@ -88,10 +95,11 @@ for( year in 2000:2025 )
           left_join( current_elo, by = "rikishiId" ) |> 
           left_join( select( current_elo, rikishiId, opponent_elo = elo ), by = c( opponentId = "rikishiId" )) |> 
           mutate( 
+            old_elo = coalesce( old_elo, 1500 ),
             elo = coalesce( elo, 1500 ), 
             opponent_elo =coalesce( opponent_elo, 1500 ),
             pwin = elo_to_pwin( elo, opponent_elo ),
-            new_elo = elo + learning_rate * (win-pwin),
+            new_elo = elo + (1-momentum_rate) * learning_rate * (win-pwin) + momentum_rate * (elo-old_elo),
             year = year,
             month = month,
             day = day
@@ -100,7 +108,7 @@ for( year in 2000:2025 )
         
         elo_history <- bind_rows( elo_history, select( elo_update, rikishiId, win, pwin, old_elo= elo, new_elo, opponent_elo, year, month, day ))
         
-        current_elo <- select( elo_update, rikishiId, elo=new_elo ) |> 
+        current_elo <- select( elo_update, rikishiId, old_elo = elo, elo=new_elo ) |> 
           bind_rows( anti_join( current_elo, elo_update, by = "rikishiId"))
         
       }
