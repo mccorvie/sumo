@@ -65,8 +65,7 @@ momentum_rate = 0.30
 for( year in 2000:2025 )
   for( month in months )
   {
-    if( year == 2025 && month > 7 ) next
-    
+
     cat( "\n", get_basho_id( year, month ), " " )
     for( day in days )
     {
