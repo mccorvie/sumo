@@ -60,7 +60,7 @@ sumo_name <- \( rikishi_id )
 
 sumo_id <- \( shikonaEn )
 {
-  filter( all_rikishi(), shikonaEn == !!shikonaEn ) |> pull( id )
+  filter( active_rikishi(), shikonaEn == !!shikonaEn ) |> pull( id )
 }
 
 current_basho <- function()
@@ -297,9 +297,42 @@ matches0 <- matches |>
 matches0 |> arrange( -elo_mismatch )
 
 ##
-## Track Scores 
+## Track Fantasy Sumo Scores 
 ##
 
 
-picks
+picks_by_name <- list(
+  Curtis = c( "Onosato",	"Aonishiki",	"Oho",	"Kusano",	"Mitakeumi" ),
+  Jenny  = c( "Onosato",	"Aonishiki",	"Ichiyamamoto",	"Ura",	"Sadanoumi" ),
+  Colleen = c( "Onosato",	"Wakatakakage",	"Atamifuji",	"Kusano",	"Mitakeumi" ),
+  Ryan  = c( "Onosato",	"Wakatakakage",	"Abi",	"Daieisho",	"Tobizaru" ),
+  Sonia = c( "Hoshoryu",	"Aonishiki",	"Wakamotoharu",	"Daieisho",	"Asakoryu" )
+)
+  
+
+max_day <- 1
+
+
+match_table = NULL
+
+for( day in 1:max_day)
+{
+  matches    <- get_matches( basho_id, day, division )
+  torikumi_t <- matches$torikumi |> tibble()
+  
+  east <- torikumi_t |> 
+    mutate( win = winnerId == eastId, day = day ) |> 
+    select( rikishiId = eastId, opponentId = westId, win, day )
+  
+  west <- torikumi_t |> 
+    mutate( win = winnerId == westId, day = day ) |> 
+    select( rikishiId = westId, opponentId = eastId, win, day )
+  
+  match_table <- bind_rows( match_table, east, west )
+}
+
+
+picks_by_id <- map( picks_by_name, \(names) map_dbl( names,sumo_id ))
+
+map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
 
