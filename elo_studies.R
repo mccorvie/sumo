@@ -13,107 +13,14 @@ library(tidyverse)
 library(plotly)
 library(httr)
 library(jsonlite)
-
-
-compass_factor <- factor( c("West", "East"), ordered =T)
-rank_factor    <- factor( c( "Jonokuchi", "Jonidan", "Sandanme", "Makushita", "Juryo", "Maegashira", "Komusubi", "Sekiwake", "Ozeki", "Yokozuna" ), ordered = T)
-
-
-active_rikishi <- \()
-{
-  if( exists( "active_rikishi_cache"))
-    return( active_rikishi_cache )
-  
-  qq  <- GET(paste0(base_url, "/api/rikishis" ))
-  rr  <- fromJSON(rawToChar(qq$content))
-  active_rikishi_cache <<- tibble( rr$records )
-  active_rikishi_cache
-}
-
-all_rikishi <- \()
-{
-  if( exists( "all_rikishi_cache"))
-    return( all_rikishi_cache )
-  
-  qq  <- GET(paste0(base_url, "/api/rikishis" ))
-  rr  <- fromJSON(rawToChar(qq$content))
-  total <- rr$total
-  skip  <- 0
-  limit <- 1000
-  all_rikishi_cache <<- NULL
-  while( skip < total) 
-  {
-    qq  <- GET(paste0(base_url, "/api/rikishis?intai=true&skip=", skip, "&limit=", limit ))
-    rr  <- fromJSON(rawToChar(qq$content))
-    all_rikishi_cache <<- bind_rows( all_rikishi_cache, tibble( rr$records ))
-    skip <- skip + limit
-  }  
-  
-  all_rikishi_cache
-}
-
-
-sumo_name <- \( rikishi_id )
-{
-  filter( all_rikishi(), id == rikishi_id ) |> pull( shikonaEn )
-}
-
-sumo_id <- \( shikonaEn )
-{
-  filter( active_rikishi(), shikonaEn == !!shikonaEn ) |> pull( id )
-}
-
-current_basho <- function()
-{
-  yy <- today() |> year()
-  mm <- today() |> month()
-  sprintf( "%d%02d", yy, rep( months, each=2)[mm])
-}
-
-prior_basho <- \( basho_id )
-{
-  year  = as.numeric( str_sub( basho_id, 1,4))
-  month = as.numeric( str_sub( basho_id, 5,6))
-  prev_year  = ifelse( month==1, year-1, year )
-  prev_month = ifelse( month==1, 11, month-2 )
-  sprintf( "%d%02d", prev_year, prev_month)  
-}
-
-
-basho_rikishi_ranks <- list()
-basho_sumo_rank <- \(basho_id = current_basho())
-{
-  cache <- basho_rikishi_ranks[[ basho_id ]]
-  if( !is.null( cache ))
-    return( cache )
-  
-  qq  <- GET(paste0(base_url, paste0( "/api/ranks?bashoId=", basho_id )))
-  banzuke_rank  <- fromJSON(rawToChar(qq$content))
-  
-  rank_table <- str_split( banzuke_rank$rank, " ", simplify = T)
-  colnames( rank_table ) <- c( "rank_name", "rank_number", "compass")
-  rank_table <- as_tibble( rank_table ) |> mutate( rank_number = as.numeric( rank_number))
-  rank_table$rank_name <- factor( rank_table$rank_name, rank_factor )
-  rank_table$compass   <- factor( rank_table$compass, compass_factor )
-  
-  banzuke_rank <- banzuke_rank |> bind_cols(  rank_table ) |> 
-    arrange( rank_name, -rank_number, compass ) 
-  
-  basho_rikishi_ranks[[ basho_id]] <<- banzuke_rank
-  banzuke_rank
-}
+source( "sumo_api.R" )
 
 
 elo_as_of <- \( basho_id, day )
 {
-  year  = as.numeric( str_sub( basho_id, 1,4))
-  month = as.numeric( str_sub( basho_id, 5,6))
-  
   elo_history |> 
-    arrange( year, month, day ) |> 
-    filter( year < !!year | 
-              year == !!year & month < !!month | 
-              year == !!year & month == !!month & day <= !!day ) |> 
+    arrange( bashoId, day ) |> 
+    filter( bashoId < basho_id | bashoId == basho_id & day <= !!day ) |> 
     group_by( rikishiId ) |> 
     summarize( elo = last( new_elo )) |> 
     ungroup()
@@ -152,16 +59,18 @@ rikishiId =   19 # Hoshoryu
 rikishiId = 3114 # lowest ever elo
 rikishiId = 2 # asanoyama, got a covid suspension
 
-rikishiId = 37
+rikishiId = 21
 
 ##
 ##  Rikishi Elo history
 ##
 
 rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId) |> arrange( year, month, day) |> 
-  mutate( date = ymd( sprintf( "%d%02d%02d", year, month, day)))  
+  mutate( date = ymd( sprintf( "%s%02d", bashoId, day)))  |> 
+  filter( date >= ymd( "20250101"))
   
-ggplot( rikishi_elo, aes( date, new_elo, color=win )) + geom_point( size=0.75) + labs( title =sumo_name( rikishiId) )
+#ggplot( rikishi_elo, aes( date, new_elo )) + geom_line() +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
+ggplot( rikishi_elo, aes( date, new_elo ))  +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
 
 
 ##
@@ -170,7 +79,21 @@ ggplot( rikishi_elo, aes( date, new_elo, color=win )) + geom_point( size=0.75) +
 
 # brier score
 
-elo_history |> mutate( brier_score = (pwin-win)^2) |> summarize( brier_score = mean( brier_score ))
+elo_history |> 
+  mutate( 
+    brier_score = (pwin-win)^2,
+    log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
+  ) |> 
+  summarize( brier_score = mean( brier_score ), log_loss = mean( log_loss ))
+
+elo_history |> 
+  filter( abs(pwin-0.5)>0.2) |> 
+  mutate( 
+    brier_score = (pwin-win)^2,
+    log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
+  ) |> 
+  summarize( brier_score = mean( brier_score ), log_loss = mean( log_loss ))
+
 ggplot( elo_history, aes( pwin)) + geom_density()
 
 # calibration plot
@@ -208,11 +131,11 @@ current_elo1 <- current_elo |> left_join( sumo_name_t, by="rikishiId")
 
 filter( elo_history, new_elo == min( new_elo))
 
-top <- filter( elo_history, year==2025, month==7, day==15, new_elo > 1800)  |> 
+top <- filter( elo_history, bashoId == "202507", day==15, new_elo > 1800)  |> 
   left_join( sumo_name_t, by="rikishiId" ) |>   
   arrange(new_elo)
 
-top |> arrange( -new_elo)
+top |> arrange( -new_elo) |> print(n=20)
 
 
 ##
@@ -240,7 +163,7 @@ filter( banzuke_elo, rank_name == "Juryo") |> arrange( -elo)
 ##
 
 basho_id <- "202509"
-day <- 1
+day <- 3
 
 banzuke_rank <- basho_sumo_rank( basho_id ) |> 
   filter( rank_name != "Jonokuchi", rank_name != "Jonidan", rank_name != "Sandanme", rank_name != "Makushita", rank_name != "Juryo" )
@@ -263,14 +186,14 @@ pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name, text=shikona)
 ggplotly(pp, tooltip = "text")
 
 
-
+sumo_id( "Tobizaru")
 
 ##
 ## Match sheet
 ##
 
 basho_id <- "202509"
-day <- 2
+day <- 3
 division <- "Makuuchi"
 
 match_elo <- elo_as_of( basho_id, day)
@@ -285,14 +208,24 @@ matches0 <- matches |>
   mutate(
     pwin_east = elo_to_pwin( elo_east, elo_west ),
     pwin_west = 1-pwin_east,
-    odds_east = exp( (elo_east - elo_west) * elo_factor ),
+    odds_east = exp( (elo_east - elo_west) * elo_factor ), 
     odds_west = 1/odds_east,
+    surprisal_east =  -log(pwin_east)/log(2),
+    surprisal_west = -log(pwin_west)/log(2),
     elo_mismatch = abs( elo_east-elo_west ),
     resolved = winnerId != 0,
     winner_east = ifelse( resolved,  winnerId == eastId, NA ),
-    surprisal = ifelse( resolved, ifelse( winner_east, -log(pwin_east)/log(2), -log(pwin_west)/log(2) ), NA )
+    surprisal = ifelse( resolved, ifelse( winner_east, surprisal_east, surprisal_west ), NA ),
   )
 
+
+# prediction sheet
+matches0 |> 
+  select( matchNo, eastId, eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westId, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
+  print( n=35)
+
+
+select( -id, -bashoId ) |> print(n=35)
 
 matches0 |> arrange( -elo_mismatch )
 
@@ -310,7 +243,7 @@ picks_by_name <- list(
 )
   
 
-max_day <- 1
+max_day <- 3
 
 
 match_table = NULL
@@ -336,3 +269,14 @@ picks_by_id <- map( picks_by_name, \(names) map_dbl( names,sumo_id ))
 
 map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
 
+
+
+
+##
+##  Reset cache for some day (after results are in, e.g, )
+##
+
+# reset some day
+basho_id = "202507"
+day = 14
+map( divisions, \(div) get_matches( basho_id, day, div, T ))
