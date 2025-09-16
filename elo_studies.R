@@ -22,7 +22,7 @@ elo_as_of <- \( basho_id, day )
     arrange( bashoId, day ) |> 
     filter( bashoId < basho_id | bashoId == basho_id & day <= !!day ) |> 
     group_by( rikishiId ) |> 
-    summarize( elo = last( new_elo )) |> 
+    summarize( elo = last( new_elo ), total_matches = last(total_matches), total_wins = last(total_wins)) |> 
     ungroup()
 }
 
@@ -196,15 +196,24 @@ basho_id <- "202509"
 day <- 3
 division <- "Makuuchi"
 
-match_elo <- elo_as_of( basho_id, day)
+pre_basho <- elo_as_of( prior_basho(basho_id), 15 ) |> 
+  rename( 
+    pre_basho_elo = elo,
+    pre_basho_total_matches = total_matches,
+    pre_basho_total_wins    = total_wins
+  )
 
+match_elo <- elo_as_of( basho_id, day) |> 
+  left_join( pre_basho, by="rikishiId" ) |> 
+  mutate( wins = total_wins - pre_basho_total_wins, matches = total_matches - pre_basho_total_matches, losses = matches - wins ) |> 
+  select( rikishiId, elo, wins, losses )
 
 matches <- get_matches( basho_id, day, division )
 matches <- matches$torikumi |> tibble()
 
 matches0 <- matches |> 
-  left_join( rename( match_elo, elo_east = elo ), by = join_by( eastId == rikishiId )) |> 
-  left_join( rename( match_elo, elo_west = elo ), by = join_by( westId == rikishiId )) |> 
+  left_join( rename( match_elo, elo_east = elo, wins_east = wins, losses_east = losses ), by = join_by( eastId == rikishiId )) |> 
+  left_join( rename( match_elo, elo_west = elo, wins_west = wins, losses_west = losses ), by = join_by( westId == rikishiId )) |> 
   mutate(
     pwin_east = elo_to_pwin( elo_east, elo_west ),
     pwin_west = 1-pwin_east,
@@ -221,13 +230,18 @@ matches0 <- matches |>
 
 # prediction sheet
 matches0 |> 
-  select( matchNo, eastId, eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westId, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
+  mutate( 
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west)
+  ) |> 
+  select( eastId, eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westId, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
   print( n=35)
 
 
 select( -id, -bashoId ) |> print(n=35)
 
-matches0 |> arrange( -elo_mismatch )
+matches0 |> arrange( -elo_mismatch ) |> 
+  select( eastId, eastShikona, elo_east, pwin_east, westId, westShikona, elo_west, pwin_west, winnerEn, surprisal)
 
 ##
 ## Track Fantasy Sumo Scores 
@@ -243,10 +257,10 @@ picks_by_name <- list(
 )
   
 
+basho_id = "202509"
 max_day <- 3
 
-
-match_table = NULL
+match_t = NULL
 
 for( day in 1:max_day)
 {
@@ -261,14 +275,26 @@ for( day in 1:max_day)
     mutate( win = winnerId == westId, day = day ) |> 
     select( rikishiId = westId, opponentId = eastId, win, day )
   
-  match_table <- bind_rows( match_table, east, west )
+  match_t <- bind_rows( match_t, east, west )
 }
 
 
 picks_by_id <- map( picks_by_name, \(names) map_dbl( names,sumo_id ))
 
-map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
+fantasy_t <- match_t
+for( person in names( picks_by_id))
+  fantasy_t <- fantasy_t |> mutate( !!person := (rikishiId %in% picks_by_id[[person]])&win )
 
+fantasy_t <- fantasy_t |> group_by( day ) |> 
+  summarize( across( names(picks_by_id), sum )) |> 
+  mutate( across( names( picks_by_id), cumsum)) |> 
+  pivot_longer( names(picks_by_id), names_to = "name",values_to = "wins")
+
+ggplot( fantasy_t, aes( x=day, y=wins, color=name)) + geom_line() + geom_point()+
+  labs( title="Fantasy Sumo Wins" ) +theme_minimal()
+
+
+map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
 
 
 
@@ -277,6 +303,6 @@ map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summari
 ##
 
 # reset some day
-basho_id = "202507"
-day = 14
+basho_id = "202509"
+day = 4
 map( divisions, \(div) get_matches( basho_id, day, div, T ))
