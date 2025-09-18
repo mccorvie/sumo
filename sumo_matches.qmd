@@ -1,0 +1,112 @@
+---
+title: "Sumo Match Sheet"
+author: "Ryan McCorvie"
+format: 
+  html:
+    page-layout: full
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| output: false
+
+library(tidyverse)
+library(plotly)
+library(gt)
+library(DT)
+source( "sumo_api.R" )
+source( "elo_functions.R")
+
+basho_id = current_basho()
+matches_cache <- readRDS( "matches_cache.Rdata")
+elo_history   <- readRDS( "elo_history.Rdata")
+sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
+#all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
+
+
+```
+
+## Elo Trends for `r basho_description(basho_id)`
+
+```{r}
+
+banzuke_rank <- basho_sumo_rank( basho_id ) |> 
+  filter( rank_name != "Jonokuchi", rank_name != "Jonidan", rank_name != "Sandanme", rank_name != "Makushita", rank_name != "Juryo" )
+
+
+banzuke_elo <- banzuke_rank |> left_join( elo_as_of( prior_basho( basho_id), 15 ), by="rikishiId" ) |> 
+  mutate( elo = coalesce( elo, 1500), ordinal_rank = 1:n())  |> 
+  rename( pre_tournament_elo = elo ) |> 
+  left_join( elo_as_of( basho_id, day ), by="rikishiId" ) |> 
+  left_join( sumo_name_t, by="rikishiId" )
+
+
+pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name, text=shikona)) + 
+  geom_segment( aes( x=ordinal_rank, y=pre_tournament_elo, xend=ordinal_rank, yend = elo), arrow=arrow(length=unit(0.1, "inches"))) +
+  geom_point(size=1) + 
+  theme_minimal() + scale_color_brewer( palette ="Set2") +
+  labs( title = paste0("Elo movement during ", month, "/", year))
+
+ggplotly(pp, tooltip = "text")
+
+```
+
+
+
+
+## Match Analysis for `r basho_description(basho_id)`
+
+### Day 6
+
+```{r}
+#| echo: false
+#| output: false
+
+prediction_sheet <- get_prediction_sheet( basho_id,  6 )
+
+prediction_sheet <- prediction_sheet |> 
+  mutate( 
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west)
+  ) |> 
+  select( `Match` = matchNo, East = eastShikona, `Elo E` = elo_east, `Win Prob E`=pwin_east, `Odds E`=odds_east, `Surprisal E` = surprisal_east, `Elo Gap` = elo_mismatch, `Suprisal W` = surprisal_west,  `Odds W` = odds_west, `Win Prob W` = pwin_west, `Elo W` = elo_west, West = westShikona )
+```
+
+```{r}
+#| echo: false
+gt( prediction_sheet) |>
+  tab_options(table.width = pct(90)) |> 
+  tab_options(table.font.size = "14px") |> 
+  fmt_number(
+    columns = c(`Elo E`, `Elo W`, `Elo Gap` ),
+    use_seps = F,
+    decimals = 0  # sets the number of decimal places
+  ) |> 
+  fmt_number(
+    columns =  c( `Win Prob E`, `Odds E`, `Surprisal E`, `Win Prob W`, `Odds W`, `Suprisal W`),
+    decimals = 2
+  ) |> 
+  tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "black",
+      weight = px(2)
+    ),
+    locations = cells_body(
+      columns = c( `Surprisal E`, `Elo Gap` )
+    )
+  )
+
+```
+
+### Day 4
+
+
+### Day 3
+
+
+### Day 2
+
+
+### Day 1

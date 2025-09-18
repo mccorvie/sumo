@@ -17,13 +17,15 @@ divisions <- c( "makuuchi", "juryo", "makushita" )
 months <- seq(1,11, 2)
 days   <- 1:15
 
+basho_name     <- c( "Hatsu", "Haru", "Natsu", "Nagoya", "Aki", "Kyushu" )
+basho_location <- c( "Tokyo", "Osaka", "Tokyo", "Nagoya", "Tokyo", "Fukuoka")
+
 compass_factor <- factor( c("West", "East"), ordered =T)
 rank_factor    <- factor( c( "Jonokuchi", "Jonidan", "Sandanme", "Makushita", "Juryo", "Maegashira", "Komusubi", "Sekiwake", "Ozeki", "Yokozuna" ), ordered = T)
 
 
 base_url <- "https://www.sumo-api.com"
 
-#matches_cache <<- list()
 get_matches <- \( basho_id, day, division, refresh = F )
 {
   if( !exists( "matches_cache"))
@@ -64,10 +66,13 @@ prior_basho <- \( basho_id )
   sprintf( "%d%02d", prev_year, prev_month)  
 }
 
+basho_description <- \( basho_id )
+{
+  year  = as.numeric( str_sub( basho_id, 1,4))
+  month = as.numeric( str_sub( basho_id, 5,6))
+  paste( year, rep(basho_name,each=2)[month], "Basho in", rep(basho_location, each=2)[month])
+}
 
-
-
-# active_rikishi
 
 active_rikishi <- \()
 {

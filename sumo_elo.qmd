@@ -1,0 +1,109 @@
+---
+title: "Sumo Elo Ratings"
+author: "Ryan McCorvie"
+format: 
+  html:
+    toc: true
+    toc-location: left
+    sidebar: true
+    theme: cosmo
+number-sections: true
+---
+
+## Introduction
+
+Sumo, Japan’s national sport, has centuries of tradition and a highly structured system of competition.
+
+This webpage explores wrestler performance through [**Elo ratings**](https://en.wikipedia.org/wiki/Elo_rating_system), a method commonly used in chess and video games to track relative skill over time.
+
+The goal is to see how well Elo captures wrestler strength compared to the official banzuke (ranking) system. Elo scores can help gauge the relative strength of rikishi in a given match, and provide a fuller picture of a wrestler's record than a simple win-loss record. Elo can also help track the prowess of a wrestler over time, showing trends in performance.
+
+
+## Background 
+
+### Sumo
+
+Elo ratings provide a way of updating a competitor’s strength based on match outcomes, rewarding unexpected victories more heavily.
+
+In the context of sumo:
+
+-   Wrestlers compete in six *honbasho* (grand tournaments) per year, in each of the odd-numbered months
+-   Each top-division wrestler fights 15 bouts per basho.
+-   The Japan Sumo Association publishes the official [*banzuke*](https://sumo.or.jp/EnHonbashoBanzuke/index/) ranking before each tournament, based on recent records and judgment by the ranking committee.
+
+This project applies Elo to sumo bouts to compare a statistical rating system with the traditional banzuke.
+
+### Elo Calculations
+
+Wrestlers are assigned an initial Elo rating of **1500**, a common baseline in Elo systems.  Each bout updates the wrestlers’ ratings based on the expected outcome vs. the actual result.  
+
+The Elo system is built on **log-odds**: the difference in ratings corresponds to the logarithm of the expected odds. A difference of **400 points** means the higher-rated wrestler is expected to win about 90% of the time — equivalent to **10-to-1 odds**.  
+
+The formula for expected win probability of Wrestler A against Wrestler B is:  
+
+$$
+P(A \text{wins}) = \frac{1}{1 + 10^{-(R_A - R_B)/400}}
+$$
+
+Where \(R_A\) and \(R_B\) are the Elo ratings of the two wrestlers.
+
+Here is a quick reference table converting Elo differences into win probabilities and approximate betting odds:
+
+| Elo Difference | Win Probability | Approx. Odds   |
+|----------------|-----------------|----------------|
+| 400            | 90.1%           | 10-to-1        |
+| 200            | 76%             | 3-to-1         |
+| 100            | 64%             | 7-to-4 (≈2-to-1) |
+| 50             | 57%             | 4-to-3         |
+
+Intuitively, small rating gaps imply relatively even contests, while large gaps indicate overwhelming favorites.
+
+
+
+## Elo History for Selected Wrestlers
+
+One way to appreciate the Elo system is to track how ratings evolve for individual wrestlers across their careers.  
+
+### Example: Hakuho
+
+- Hakuho is widely regarded as the most dominant Yokozuna in modern sumo.  
+- His Elo score peaked at extraordinary levels, reflecting long streaks of dominance.  
+
+*(Insert a time series graph of Hakuho’s Elo rating here)*
+
+### Other Notable Wrestlers
+
+You may also include charts for wrestlers such as:  
+- Taiho  
+- Chiyonofuji  
+- Asashoryu  
+- Takanohana  
+
+### Highest Ever Elo Scores
+
+Here is a list of the five highest Elo scores ever recorded in sumo:  
+
+*(Insert a table or bullet list here — placeholder for now)*
+
+---
+
+## Calibration
+
+This section explains how the Elo system was tuned for sumo:  
+- What starting rating was chosen?  
+- How were K-factors (update sensitivity) selected?  
+- Did we adjust for era or tournament format changes?  
+- Were special cases (e.g., fusen wins by default) treated differently?  
+
+Calibration ensures that Elo ratings reflect meaningful comparisons across eras.
+
+---
+
+## Technical Details
+
+For readers interested in methodology:  
+- **Data sources:** historical sumo bout records (e.g., SumoDB, official sumo records).  
+- **Computation:** implemented in R/Python with standard Elo update formulas.  
+- **Visualization:** time series and summary statistics presented with Quarto.  
+- **Limitations:** ratings cannot fully capture injuries, absences, or qualitative factors (such as pressure on Yokozuna).  
+

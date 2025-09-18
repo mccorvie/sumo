@@ -1,5 +1,3 @@
-
-
 ##
 ## Sumo ELO calculations
 ## copyright Ryan McCorvie 2025
@@ -14,63 +12,30 @@ library(plotly)
 library(httr)
 library(jsonlite)
 source( "sumo_api.R" )
-
-
-elo_as_of <- \( basho_id, day )
-{
-  elo_history |> 
-    arrange( bashoId, day ) |> 
-    filter( bashoId < basho_id | bashoId == basho_id & day <= !!day ) |> 
-    group_by( rikishiId ) |> 
-    summarize( elo = last( new_elo ), total_matches = last(total_matches), total_wins = last(total_wins)) |> 
-    ungroup()
-}
+source( "prediction_sheet.R" )
 
 
 
 
-ggplot( current_elo, aes( x=elo )) + geom_density()
-
-
-rikishiId = 14 # Tamawashi
-rikishiId = 3081 # Hakuho
-rikishiId = 8850 # Onosato
-rikishiId = 12 # Watatakakge
-
-rikishiId = 8850 # Onosato     
-rikishiId =   12 # Wakatakakage
-rikishiId =    7 # Kirishima   
-rikishiId =   44 # Takayasu    
-rikishiId =   20 # Kotozakura  
-rikishiId = 8854 # Aonishiki   
-rikishiId =   22 # Abi         
-rikishiId =   14 # Tamawashi   
-rikishiId =   41 # Oho         
-rikishiId =   13 # Wakamotoharu
-rikishiId =   24 # Hiradoumi   
-rikishiId =   56 # Gonoyama    
-rikishiId =    3 # Hakuoho     
-rikishiId =    8 # Kotoshoho   
-rikishiId =   74 # Atamifuji   
-rikishiId =   11 # Ichiyamamoto
-rikishiId = 8853 # Onokatsu 
-rikishiId =   19 # Hoshoryu
-
-rikishiId = 3114 # lowest ever elo
-rikishiId = 2 # asanoyama, got a covid suspension
-
-rikishiId = 21
+ggplot( current_elo,aes( x=elo )) + geom_density() + labs( title = "Distribution of Sumo Scores")
 
 ##
 ##  Rikishi Elo history
 ##
 
-rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId) |> arrange( year, month, day) |> 
-  mutate( date = ymd( sprintf( "%s%02d", bashoId, day)))  |> 
-  filter( date >= ymd( "20250101"))
-  
+rikishiId = sumo_id( "Onosato" )
+start_basho  = "200001"
+
+rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
+  mutate( date = ymd( sprintf( "%s%02d", bashoId, day)))  
+
 #ggplot( rikishi_elo, aes( date, new_elo )) + geom_line() +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
-ggplot( rikishi_elo, aes( date, new_elo ))  +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
+ggplot( rikishi_elo, aes( date, new_elo )) + 
+  geom_point( aes(color=win),size=1) + 
+  labs( title =sumo_name( rikishiId), subtitle = "Elo Rating Over Time" ) +
+  xlab( "date") + ylab( "Elo rating")+
+  theme_minimal() +
+  theme(legend.position = "none")
 
 
 ##
@@ -79,7 +44,7 @@ ggplot( rikishi_elo, aes( date, new_elo ))  +geom_point( aes(color=win),size=1) 
 
 # brier score
 
-elo_history |> 
+elo_history |> filter( division=="Makuuchi") |> 
   mutate( 
     brier_score = (pwin-win)^2,
     log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
@@ -99,7 +64,7 @@ ggplot( elo_history, aes( pwin)) + geom_density()
 # calibration plot
 
 buckets = 20
-calibration_plot <- elo_history |> 
+calibration_plot <- elo_history |> filter( division=="Makuuchi") |> 
   mutate( quantile = floor(pwin*buckets) ) |> 
   group_by( quantile ) |> 
   summarize( win=mean(win), cnt=n(), win_std = win*(1-win)/sqrt( cnt)) |> 
@@ -127,9 +92,14 @@ elo_to_pwin( 50,0)  # 4-to-3
 ##
 
 sumo_name_t <- all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
+#saveRDS( sumo_name_t,  "sumo_name_t.Rdata")
+
 current_elo1 <- current_elo |> left_join( sumo_name_t, by="rikishiId")
 
+filter( elo_history, new_elo == max( new_elo))
+sumo_name( 3081)
 filter( elo_history, new_elo == min( new_elo))
+sumo_name( 3114)
 
 top <- filter( elo_history, bashoId == "202507", day==15, new_elo > 1800)  |> 
   left_join( sumo_name_t, by="rikishiId" ) |>   
@@ -157,17 +127,25 @@ ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name)) + geom_point(size
 filter( banzuke_elo ) |> arrange( -elo) |> head( 20)
 filter( banzuke_elo, rank_name == "Juryo") |> arrange( -elo)
 
+filter( banzuke_elo, rank_name!="Makushita") |> 
+  ggplot( aes( total_matches, elo )) + geom_point( aes(color=rank_name)) +geom_smooth( method = "lm")
 
+lm( elo~total_matches, banzuke_elo) |> summary()
+unique( banzuke_elo$rank_name)
 ##
 ## tournament movement
 ##
 
 basho_id <- "202509"
-day <- 3
+day <- 4
 
 banzuke_rank <- basho_sumo_rank( basho_id ) |> 
   filter( rank_name != "Jonokuchi", rank_name != "Jonidan", rank_name != "Sandanme", rank_name != "Makushita", rank_name != "Juryo" )
 
+
+elo_as_of( "202507",15) |> filter( rikishiId == sumo_id("Onosato"))
+elo_as_of( "202509",4)  |> filter( rikishiId == sumo_id("Onosato"))
+filter( elo_history, bashoId =="202509", rikishiId == sumo_id( "Onosato"))
 
 
 banzuke_elo <- banzuke_rank |> left_join( elo_as_of( prior_basho( basho_id), 15 ), by="rikishiId" ) |> 
@@ -185,7 +163,25 @@ pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name, text=shikona)
 
 ggplotly(pp, tooltip = "text")
 
+this_banzuke <- elo_history |> 
+  filter( bashoId == current_basho()) |> 
+  left_join( banzuke_rank ) |> filter( !is.na(rank_name))
+  
+ggplot( this_banzuke,aes( group=rikishiId, color = rank_name, x=day, y=elo)) + geom_line( alpha=0.5)
 
+this_banzuke <- this_banzuke |> 
+  left_join( select( elo_as_of( prior_basho( current_basho()),15), rikishiId, total_wins_prior = total_wins, elo_prior = elo )) |> 
+  mutate( total_wins_banzuke = total_wins - total_wins_prior, elo_change = elo-elo_prior)
+
+ggplot( this_banzuke,aes( group=rikishiId, color = rank_name, x=day, y=elo_change)) + geom_line( alpha=0.5)
+ggplot( this_banzuke,aes( group=rikishiId, color = rank_name, x=day, y=total_wins_banzuke)) + geom_line( alpha=0.5)
+
+
+filter( this_banzuke, day == max(day)) |> 
+  ggplot( aes(x=elo_change)) + geom_density()
+
+filter( this_banzuke, day == max(day)) |> 
+  ggplot( aes(x=total_wins_banzuke)) + geom_bar()
 sumo_id( "Tobizaru")
 
 ##
@@ -193,7 +189,7 @@ sumo_id( "Tobizaru")
 ##
 
 basho_id <- "202509"
-day <- 3
+day <- 6
 division <- "Makuuchi"
 
 pre_basho <- elo_as_of( prior_basho(basho_id), 15 ) |> 
@@ -234,11 +230,10 @@ matches0 |>
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west)
   ) |> 
-  select( eastId, eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westId, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
+  select( eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
   print( n=35)
 
 
-select( -id, -bashoId ) |> print(n=35)
 
 matches0 |> arrange( -elo_mismatch ) |> 
   select( eastId, eastShikona, elo_east, pwin_east, westId, westShikona, elo_west, pwin_west, winnerEn, surprisal)
@@ -258,7 +253,7 @@ picks_by_name <- list(
   
 
 basho_id = "202509"
-max_day <- 3
+max_day <- 6
 
 match_t = NULL
 
@@ -294,9 +289,7 @@ ggplot( fantasy_t, aes( x=day, y=wins, color=name)) + geom_line() + geom_point()
   labs( title="Fantasy Sumo Wins" ) +theme_minimal()
 
 
-map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
-
-
+map( picks_by_id, \(picks) filter( match_t, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
 
 ##
 ##  Reset cache for some day (after results are in, e.g, )
@@ -304,5 +297,19 @@ map( picks_by_id, \(picks) filter( match_table, rikishiId %in% picks) |> summari
 
 # reset some day
 basho_id = "202509"
-day = 4
+day = 6
 map( divisions, \(div) get_matches( basho_id, day, div, T ))
+
+for( day in 1:5 )
+  for( division in divisions )
+  {
+    torikumi   <- get_matches( basho_id, day, division ) 
+    torikumi_t <- torikumi$torikumi |> tibble()
+    
+    tt <- torikumi_t |> pull( matchNo ) |> table() 
+    if( any( tt>1 )) 
+      cat( "!!", division, day, "duplicates\n")
+  }
+
+
+

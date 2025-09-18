@@ -1,21 +1,16 @@
 
 ##
-## Sumo ELO calculations
+## Compute all the elo scores by time
 ## copyright Ryan McCorvie 2025
 ##
 
-# online sources for sumo data
-# https://sumodb.sumogames.de/Rikishi.aspx
-# https://www.sumo-api.com/
 
 library( tidyverse )
 library(httr)
 library(jsonlite)
 source( "sumo_api.R" )
+source( "elo_functions.R" )
 
-
-elo_factor  <- log(10)/400
-elo_to_pwin <- \( elo1, elo2 ) 1/(1+exp( elo_factor * (elo2-elo1)))
 
 elo_history <- tibble()  
 
@@ -33,7 +28,8 @@ new_time      = 10 # number of matches
 momentum_rate = 0.30
 
 
-max = list( year = 2025, month=9, day=3)
+max = list( year = 2025, month=9, day=5)
+
 
 for( year in 2000:2025 )
   for( month in months )
@@ -104,4 +100,15 @@ for( year in 2000:2025 )
       }
     }
   }
+
+
+saveRDS(matches_cache, "matches_cache.Rdata")
+saveRDS( elo_history,  "elo_history.Rdata")
+
+saveRDS( sumo_name_t,  "sumo_name_t.Rdata")
+
+
+matches_cache <- readRDS( "matches_cache.Rdata")
+#saveRDS( elo_history, "elo_history.Rdata")
+
 
