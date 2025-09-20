@@ -12,7 +12,7 @@ elo_to_pwin <- \( elo1, elo2 ) 1/(1+exp( elo_factor * (elo2-elo1)))
 
 elo_as_of <- \(basho_id, day)
 {
-  elo_history |> filter( bashoId < basho_id | bashoId == basho_id & day <= !!day) |> 
+  elo_history |> filter( bashoId < basho_id | bashoId == basho_id & day < !!day) |> 
     arrange( bashoId, day ) |> 
     group_by( rikishiId ) |> 
     summarize( 
@@ -23,10 +23,9 @@ elo_as_of <- \(basho_id, day)
     ungroup()
 }
 
-
-get_prediction_sheet <- \(basho_id, day, division="makuuchi")
+get_match_sheet <- \(basho_id, day, division="makuuchi")
 {
-  pre_basho <- elo_as_of( prior_basho(basho_id), 15 ) |> 
+  pre_basho <- elo_as_of( basho_id, 1 ) |> 
     rename( 
       pre_basho_elo = elo,
       pre_basho_total_matches = total_matches,

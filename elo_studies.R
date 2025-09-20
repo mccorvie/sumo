@@ -23,7 +23,7 @@ ggplot( current_elo,aes( x=elo )) + geom_density() + labs( title = "Distribution
 ##  Rikishi Elo history
 ##
 
-rikishiId = sumo_id( "Onosato" )
+rikishiId = sumo_id( "Aonishiki" )
 start_basho  = "200001"
 
 rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
@@ -192,7 +192,7 @@ basho_id <- "202509"
 day <- 6
 division <- "Makuuchi"
 
-pre_basho <- elo_as_of( prior_basho(basho_id), 15 ) |> 
+pre_basho <- elo_as_of( basho_id, 1 ) |> 
   rename( 
     pre_basho_elo = elo,
     pre_basho_total_matches = total_matches,
@@ -211,6 +211,8 @@ matches0 <- matches |>
   left_join( rename( match_elo, elo_east = elo, wins_east = wins, losses_east = losses ), by = join_by( eastId == rikishiId )) |> 
   left_join( rename( match_elo, elo_west = elo, wins_west = wins, losses_west = losses ), by = join_by( westId == rikishiId )) |> 
   mutate(
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west),
     pwin_east = elo_to_pwin( elo_east, elo_west ),
     pwin_west = 1-pwin_east,
     odds_east = exp( (elo_east - elo_west) * elo_factor ), 
@@ -223,20 +225,18 @@ matches0 <- matches |>
     surprisal = ifelse( resolved, ifelse( winner_east, surprisal_east, surprisal_west ), NA ),
   )
 
-
 # prediction sheet
+
 matches0 |> 
-  mutate( 
-    record_east = paste0( wins_east, "-", losses_east),
-    record_west = paste0( wins_west, "-", losses_west)
-  ) |> 
   select( eastShikona, elo_east, pwin_east, odds_east, surprisal_east, westShikona, elo_west, pwin_west, odds_west, surprisal_west, elo_mismatch ) |> 
   print( n=35)
 
 
+# post match summary
 
-matches0 |> arrange( -elo_mismatch ) |> 
-  select( eastId, eastShikona, elo_east, pwin_east, westId, westShikona, elo_west, pwin_west, winnerEn, surprisal)
+matches0 |> 
+  select( eastShikona, elo_east, pwin_east, record_east, westShikona, elo_west, pwin_west, record_west, winnerEn, surprisal) |> 
+  print( n=35)
 
 ##
 ## Track Fantasy Sumo Scores 
@@ -297,10 +297,10 @@ map( picks_by_id, \(picks) filter( match_t, rikishiId %in% picks) |> summarize( 
 
 # reset some day
 basho_id = "202509"
-day = 6
+day = 7
 map( divisions, \(div) get_matches( basho_id, day, div, T ))
 
-for( day in 1:5 )
+for( day in 1:7 )
   for( division in divisions )
   {
     torikumi   <- get_matches( basho_id, day, division ) 

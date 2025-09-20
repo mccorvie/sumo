@@ -28,7 +28,7 @@ new_time      = 10 # number of matches
 momentum_rate = 0.30
 
 
-max = list( year = 2025, month=9, day=5)
+max = list( year = 2025, month=9, day=6)
 
 
 for( year in 2000:2025 )
@@ -105,7 +105,6 @@ for( year in 2000:2025 )
 saveRDS(matches_cache, "matches_cache.Rdata")
 saveRDS( elo_history,  "elo_history.Rdata")
 
-saveRDS( sumo_name_t,  "sumo_name_t.Rdata")
 
 
 matches_cache <- readRDS( "matches_cache.Rdata")
