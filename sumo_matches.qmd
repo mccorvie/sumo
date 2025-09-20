@@ -30,25 +30,28 @@ sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
 ## Elo Trends for `r basho_description(basho_id)`
 
 ```{r}
-# 
-# banzuke_rank <- basho_sumo_rank( basho_id ) |> 
-#   filter( rank_name != "Jonokuchi", rank_name != "Jonidan", rank_name != "Sandanme", rank_name != "Makushita", rank_name != "Juryo" )
-# 
-# 
-# banzuke_elo <- banzuke_rank |> left_join( elo_as_of( prior_basho( basho_id), 15 ), by="rikishiId" ) |> 
-#   mutate( elo = coalesce( elo, 1500), ordinal_rank = 1:n())  |> 
-#   rename( pre_tournament_elo = elo ) |> 
-#   left_join( elo_as_of( basho_id, day ), by="rikishiId" ) |> 
-#   left_join( sumo_name_t, by="rikishiId" )
-# 
-# 
-# pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name, text=shikona)) + 
-#   geom_segment( aes( x=ordinal_rank, y=pre_tournament_elo, xend=ordinal_rank, yend = elo), arrow=arrow(length=unit(0.1, "inches"))) +
-#   geom_point(size=1) + 
-#   theme_minimal() + scale_color_brewer( palette ="Set2") +
-#   labs( title = paste0("Elo movement during ", month, "/", year))
-# 
-# ggplotly(pp, tooltip = "text")
+#| echo: false
+
+day <- 7
+
+banzuke_rank <- basho_sumo_rank( basho_id ) |>
+  filter( rank_name != "Jonokuchi", rank_name != "Jonidan", rank_name != "Sandanme", rank_name != "Makushita", rank_name != "Juryo" )
+
+
+banzuke_elo <- banzuke_rank |> left_join( elo_as_of( basho_id, 1 ), by="rikishiId" ) |>
+  mutate( elo = coalesce( elo, 1500), ordinal_rank = 1:n())  |>
+  rename( pre_tournament_elo = elo ) |>
+  left_join( elo_as_of( basho_id, day ), by="rikishiId" ) |>
+  left_join( sumo_name_t, by="rikishiId" )
+
+
+pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank_name, text=shikona)) +
+  geom_segment( aes( x=ordinal_rank, y=pre_tournament_elo, xend=ordinal_rank, yend = elo), arrow=arrow(length=unit(0.15, "inches"))) +
+  geom_point(size=1.5) +
+  scale_color_brewer( palette ="Set2") +
+  labs( title = paste0("Elo Movement" ))
+
+ggplotly(pp, tooltip = "text")
 
 ```
 
