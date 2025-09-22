@@ -39,7 +39,7 @@ Each wrestler has an Elo rating, which goes up when they win and down when they 
 
 Match odds are based on the gap between two wrestlers’ scores — a big difference means there’s a clear favorite, while a closer spread means we could be in for a real battle.
 
-If you’d like to dive into the math behind it all, check out the [Elo model details](elo_sumo.html)
+If you’d like to dive into the math behind it all, check out the [Elo model details](sumo_elo.html)
 
 
 ## Elo Trends for `r basho_description(basho_id)`
