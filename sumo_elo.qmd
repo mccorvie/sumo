@@ -10,6 +10,29 @@ format:
 number-sections: true
 ---
 
+```{r}
+#| echo: false
+#| output: false
+
+library(tidyverse)
+library(plotly)
+library(gt)
+library(DT)
+source( "sumo_api.R" )
+source( "elo_functions.R")
+
+basho_id = current_basho()
+matches_cache <- readRDS( "matches_cache.Rdata")
+elo_history   <- readRDS( "elo_history.Rdata")
+sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
+#all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
+
+```
+
+
+![](elo_yokozuna.png){fig-align="center" width=60%}
+
+
 ## Introduction
 
 Sumo, Japan’s national sport, has centuries of tradition and a highly structured system of competition.
@@ -19,33 +42,32 @@ This webpage explores wrestler performance through [**Elo ratings**](https://en.
 The goal is to see how well Elo captures wrestler strength compared to the official banzuke (ranking) system. Elo scores can help gauge the relative strength of rikishi in a given match, and provide a fuller picture of a wrestler's record than a simple win-loss record. Elo can also help track the prowess of a wrestler over time, showing trends in performance.
 
 
+
 ## Background 
 
 ### Sumo
 
-Elo ratings provide a way of updating a competitor’s strength based on match outcomes, rewarding unexpected victories more heavily.
+Elo ratings provide a way of updating a competitor’s strength based on match outcomes, rewarding unexpected victories more heavily than easy wins.
 
-In the context of sumo:
+Basic sumo facts:
 
 -   Wrestlers compete in six *honbasho* (grand tournaments) per year, in each of the odd-numbered months
--   Each top-division wrestler fights 15 bouts per basho.
 -   The Japan Sumo Association publishes the official [*banzuke*](https://sumo.or.jp/EnHonbashoBanzuke/index/) ranking before each tournament, based on recent records and judgment by the ranking committee.
-
-This project applies Elo to sumo bouts to compare a statistical rating system with the traditional banzuke.
+-   Each top-division wrestler fights 15 bouts per basho, one for each day of the tournament.
 
 ### Elo Calculations
 
 Wrestlers are assigned an initial Elo rating of **1500**, a common baseline in Elo systems.  Each bout updates the wrestlers’ ratings based on the expected outcome vs. the actual result.  
 
-The Elo system is built on **log-odds**: the difference in ratings corresponds to the logarithm of the expected odds. A difference of **400 points** means the higher-rated wrestler is expected to win about 90% of the time — equivalent to **10-to-1 odds**.  
+The Elo system is built on **log-odds**: the difference in ratings corresponds to the logarithm of the expected odds. A difference of **400 points** means the higher-rated wrestler is expected to win about ~91% of the time — equivalent to **10-to-1 odds**.  
 
 The formula for expected win probability of Wrestler A against Wrestler B is:  
 
 $$
-P(A \text{wins}) = \frac{1}{1 + 10^{-(R_A - R_B)/400}}
+P(A \,\,\text{wins}) = \frac{1}{1 + 10^{-(R_A - R_B)/400}}
 $$
 
-Where \(R_A\) and \(R_B\) are the Elo ratings of the two wrestlers.
+Where $R_A$ and $R_B$ are the Elo ratings of the two wrestlers.
 
 Here is a quick reference table converting Elo differences into win probabilities and approximate betting odds:
 
@@ -58,6 +80,12 @@ Here is a quick reference table converting Elo differences into win probabilitie
 
 Intuitively, small rating gaps imply relatively even contests, while large gaps indicate overwhelming favorites.
 
+After each match, the Elo of a wrestler is updated according to 
+
+$$
+  R_{new} = R_{old} + \lambda ( W - P(A\,\,\text{wins}))
+$$
+where $W$ is the match outcome, equal to 1 if $A$ win and 0 if $A$ loses, and $\lambda$ is the learning rate, which I've set to 10.  I've experimented with adding a momentum term to the update and with higher learning rates for novice rikishi, but it's hard to beat this simple formula.
 
 
 ## Elo History for Selected Wrestlers
@@ -69,41 +97,149 @@ One way to appreciate the Elo system is to track how ratings evolve for individu
 - Hakuho is widely regarded as the most dominant Yokozuna in modern sumo.  
 - His Elo score peaked at extraordinary levels, reflecting long streaks of dominance.  
 
-*(Insert a time series graph of Hakuho’s Elo rating here)*
+```{r}
+#| echo: false
 
-### Other Notable Wrestlers
+rikishiId    = 3081
+start_basho  = "200001"
 
-You may also include charts for wrestlers such as:  
-- Taiho  
-- Chiyonofuji  
-- Asashoryu  
-- Takanohana  
+rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
+  mutate( date = ymd( sprintf( "%s%02d", bashoId, day)))  
+
+#ggplot( rikishi_elo, aes( date, new_elo )) + geom_line() +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
+ggplot( rikishi_elo, aes( date, new_elo )) + 
+  geom_point( aes(color=win),size=1) + 
+  labs( title =sumo_name( rikishiId), subtitle = "Elo Rating Over Time" ) +
+  xlab( "date") + ylab( "Elo rating")+
+  theme(legend.position = "none")
+
+```
+
+
+As another example, here is the astounding rise of current yokozuna Onosato over the last few basho.
+
+
+```{r}
+#| echo: false
+
+rikishiId    = sumo_id( "Onosato")
+start_basho  = "200001"
+
+rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
+  mutate( date = ymd( sprintf( "%s%02d", bashoId, day)))  
+
+#ggplot( rikishi_elo, aes( date, new_elo )) + geom_line() +geom_point( aes(color=win),size=1) + labs( title =sumo_name( rikishiId) )
+ggplot( rikishi_elo, aes( date, new_elo )) + 
+  geom_point( aes(color=win),size=1) + 
+  labs( title =sumo_name( rikishiId), subtitle = "Elo Rating Over Time" ) +
+  xlab( "date") + ylab( "Elo rating")+
+  theme(legend.position = "none")
+
+```
+
+
 
 ### Highest Ever Elo Scores
 
-Here is a list of the five highest Elo scores ever recorded in sumo:  
+Using Elo's computed since 2000, here is a list of the 10 higest Elo scores ever recorded.  Are these the 10 best rikishi of the 2000's?  In any case, its remarkable how Hakuho dominates all other rikishi in Elo, almost 150 points higher than the next best.
 
-*(Insert a table or bullet list here — placeholder for now)*
+```{r}
+#| echo: false
+
+top10 <- elo_history |> group_by( rikishiId) |>
+  arrange( -elo ) |> 
+  summarize( max_elo = first(elo), basho=first(bashoId)) |> 
+  ungroup() |> 
+  mutate( basho = paste0( as.numeric(str_sub(basho, 5,6)), "/", str_sub( basho,1,4))) |> 
+  left_join( sumo_name_t, by="rikishiId") |> 
+  arrange( -max_elo) |> 
+  select( Rikishi = shikona, Basho = basho, `Max Elo` = max_elo) |> 
+  slice_head( n=10)
+
+gt(top10) |> 
+  fmt_number(
+    columns = c(`Max Elo` ),
+    use_seps = F,
+    decimals = 0  # sets the number of decimal places
+  )  
+
+```
+
 
 ---
 
-## Calibration
+## Accuracy and Calibration
 
-This section explains how the Elo system was tuned for sumo:  
-- What starting rating was chosen?  
-- How were K-factors (update sensitivity) selected?  
-- Did we adjust for era or tournament format changes?  
-- Were special cases (e.g., fusen wins by default) treated differently?  
 
-Calibration ensures that Elo ratings reflect meaningful comparisons across eras.
+```{r}
+#| echo: false
+
+accuracy_makuuchi <- elo_history |> filter( division=="Makuuchi") |> 
+  mutate( 
+    brier_score = (pwin-win)^2,
+    log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
+  ) |> 
+  summarize( brier_score = round(mean( brier_score ), digits=3), log_loss = round( mean( log_loss ), digits=3))
+
+
+
+accuracy <- elo_history |> 
+  mutate( 
+    brier_score = (pwin-win)^2,
+    log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
+  ) |> 
+  summarize( brier_score = round(mean( brier_score ), digits=3), log_loss = round( mean( log_loss ), digits=3))
+
+```
+
+This shows accuracy according to common scoring rules, the [Brier score](https://en.wikipedia.org/wiki/Brier_score) and the log loss.  For a coin flip prediction on an even match, we'd expect a Brier score of 0.25 and an average surprisal of 1.  So the Elo gives a slightly better than chance forecast.  The forecast is slightly better for Makkuchi, where there is more Elo differentiation, than for matches overall.
+
+
+| Accuracy Measure | All Matches     | Makuuchi Only   |
+|------------------|-----------------|----------------|
+| Brier score      | `r accuracy$brier_score` | `r accuracy_makuuchi$brier_score`  |
+| Average surprisal | `r accuracy$log_loss`    | `r accuracy_makuuchi$log_loss`     |
+
+
+
+Next up is a calibration plot which shows the realized win rate as a function of the forecast win rate.  If the forecast is good, we would expect the win average in each bucket to line up exactly with the forecast win rate, which is the diagonal line corresponding to $y=x$.  That is, when the forecast from Elo scores says a rikishi has a 25% chance of winning, how often does he actually win on average?
+
+
+```{r}
+#| echo: false
+
+
+buckets = 20
+calibration_plot <- elo_history |> filter( division=="Makuuchi") |> 
+  mutate( quantile = floor(pwin*buckets) ) |> 
+  group_by( quantile ) |> 
+  summarize( win=mean(win), cnt=n(), win_std = win*(1-win)/sqrt( cnt)) |> 
+  mutate( quantile = (quantile +0.5)/ buckets)
+
+ggplot( calibration_plot, aes( quantile, win)) + 
+  geom_line( aes(quantile, quantile), color="darkgrey", linewidth=1.5) +
+  geom_errorbar(aes( min=win-2*win_std, max = win+2*win_std), color="plum")+
+  geom_point( size=2) +
+  scale_x_continuous(labels = scales::percent)+
+  scale_y_continuous(labels = scales::percent) +
+  xlab( "Elo forecast win %" ) + ylab("Average realized win %") +
+  labs( title = "Calibration Plot" )
+
+```
+
+Overall the agreement is pretty good, though the line $y=x$ doesn't always fall within the 2-$\sigma$ error bars.  
+
 
 ---
 
-## Technical Details
+## Other Technical Details
 
-For readers interested in methodology:  
-- **Data sources:** historical sumo bout records (e.g., SumoDB, official sumo records).  
-- **Computation:** implemented in R/Python with standard Elo update formulas.  
-- **Visualization:** time series and summary statistics presented with Quarto.  
-- **Limitations:** ratings cannot fully capture injuries, absences, or qualitative factors (such as pressure on Yokozuna).  
+The code for this project lives at [https://github.com/mccorvie/sumo](https://github.com/mccorvie/sumo).
+
+The author of this page is [Ryan McCorvie](https://mccorvie.org).
+
+Match data is provided by the amazing resource [Sumo API](https://www.sumo-api.com/).  Consider donating money to support that site!
+
+
+
 

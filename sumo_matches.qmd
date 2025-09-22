@@ -29,13 +29,18 @@ day <- 9
 ```
 
 
+Welcome to the rikishi Elo scoreboard! This page gives you a quick way to see who’s looking strongest in the current basho.
+
+![](elo_dohyo.png){fig-align="center" width=60%}
+
 ## Sumo Strength by the Numbers
 
-Welcome to the rikishi Elo scoreboard! This page gives you a quick way to see who’s looking strongest in the current basho. Each wrestler has an Elo rating, which goes up when they win and down when they lose, so the numbers shift day by day as the action unfolds.
+Each wrestler has an Elo rating, which goes up when they win and down when they lose, so the numbers shift day by day as the action unfolds.
 
 Match odds are based on the gap between two wrestlers’ scores — a big difference means there’s a clear favorite, while a closer spread means we could be in for a real battle.
 
 If you’d like to dive into the math behind it all, check out the [Elo model details](elo_sumo.html)
+
 
 ## Elo Trends for `r basho_description(basho_id)`
 
@@ -63,7 +68,7 @@ pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank, text=shikona)) +
   labs( title = paste0("Elo Movement" )) +
   xlab("banzuke rank")
 
-ggplotly(pp, tooltip = "text", width=600 ) |> 
+ggplotly(pp, tooltip = "text", width=800 ) |> 
   layout(
     legend = list(
       orientation = "h",     # horizontal

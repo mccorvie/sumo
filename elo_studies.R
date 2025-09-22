@@ -15,15 +15,17 @@ source( "sumo_api.R" )
 source( "prediction_sheet.R" )
 
 
-
-
 ggplot( current_elo,aes( x=elo )) + geom_density() + labs( title = "Distribution of Sumo Scores")
 
 ##
 ##  Rikishi Elo history
 ##
 
-rikishiId = sumo_id( "Daieisho" )
+rikishiId = sumo_id( "Onosato" )
+
+sumo_id( sumo_name( 3081))
+
+
 start_basho  = "200001"
 
 rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
@@ -36,6 +38,22 @@ ggplot( rikishi_elo, aes( date, new_elo )) +
   xlab( "date") + ylab( "Elo rating")+
   theme_minimal() +
   theme(legend.position = "none")
+
+
+
+#
+# Best rikishi
+#
+
+elo_history |> group_by( rikishiId) |>
+  arrange( -elo ) |> 
+  summarize( max_elo = first(elo), basho=first(bashoId)) |> 
+  ungroup() |> 
+  mutate( basho = paste0( as.numeric(str_sub(basho, 5,6)), "/", str_sub( basho,1,4))) |> 
+  left_join( sumo_name_t) |> 
+  arrange( -max_elo) |> 
+  select( Rikishi = shikona, Basho = basho, `Max Elo` = max_elo) |> 
+  print( n=10)  
 
 
 ##
