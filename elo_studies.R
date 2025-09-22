@@ -23,7 +23,7 @@ ggplot( current_elo,aes( x=elo )) + geom_density() + labs( title = "Distribution
 ##  Rikishi Elo history
 ##
 
-rikishiId = sumo_id( "Aonishiki" )
+rikishiId = sumo_id( "Daieisho" )
 start_basho  = "200001"
 
 rikishi_elo <- elo_history |> filter( rikishiId == !!rikishiId, bashoId >= start_basho) |> 
@@ -50,6 +50,15 @@ elo_history |> filter( division=="Makuuchi") |>
     log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
   ) |> 
   summarize( brier_score = mean( brier_score ), log_loss = mean( log_loss ))
+
+
+elo_history |> 
+  mutate( 
+    brier_score = (pwin-win)^2,
+    log_loss = -1/log(2) * (win * log(pwin) + (1-win)*log(1-pwin)),
+  ) |> 
+  summarize( brier_score = mean( brier_score ), log_loss = mean( log_loss ))
+
 
 elo_history |> 
   filter( abs(pwin-0.5)>0.2) |> 
@@ -79,7 +88,6 @@ ggplot( calibration_plot, aes( quantile, win)) +
 
 ##
 ##  Elo to odds calculations
-##
 
 sqrt(sqrt(10))
 elo_to_pwin( 400,0) # 10-to-1
@@ -91,6 +99,7 @@ elo_to_pwin( 50,0)  # 4-to-3
 ##  High Elo rikishi
 ##
 
+#rm(all_rikishi_cache)
 sumo_name_t <- all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
 #saveRDS( sumo_name_t,  "sumo_name_t.Rdata")
 
@@ -251,9 +260,9 @@ picks_by_name <- list(
   Sonia = c( "Hoshoryu",	"Aonishiki",	"Wakamotoharu",	"Daieisho",	"Asakoryu" )
 )
   
-
+division = "Makuuchi"
 basho_id = "202509"
-max_day <- 6
+max_day <- 8
 
 match_t = NULL
 
@@ -273,12 +282,12 @@ for( day in 1:max_day)
   match_t <- bind_rows( match_t, east, west )
 }
 
-
 picks_by_id <- map( picks_by_name, \(names) map_dbl( names,sumo_id ))
 
 fantasy_t <- match_t
 for( person in names( picks_by_id))
   fantasy_t <- fantasy_t |> mutate( !!person := (rikishiId %in% picks_by_id[[person]])&win )
+
 
 fantasy_t <- fantasy_t |> group_by( day ) |> 
   summarize( across( names(picks_by_id), sum )) |> 
@@ -297,8 +306,8 @@ map( picks_by_id, \(picks) filter( match_t, rikishiId %in% picks) |> summarize( 
 
 # reset some day
 basho_id = "202509"
-day = 7
-map( divisions, \(div) get_matches( basho_id, day, div, T ))
+for( day in 1:9 )
+  map( divisions, \(div) get_matches( basho_id, day, div, T ))
 
 for( day in 1:7 )
   for( division in divisions )

@@ -25,10 +25,10 @@ current_elo <- tibble(
 learning_rate = 10
 new_lr_boost  = 0
 new_time      = 10 # number of matches
-momentum_rate = 0.30
+momentum_rate = 0.3
 
 
-max = list( year = 2025, month=9, day=6)
+max = list( year = 2025, month=9, day=8)
 
 
 for( year in 2000:2025 )
@@ -40,7 +40,6 @@ for( year in 2000:2025 )
       if( year > max$year ) next
       if( year == max$year && month > max$month ) next
       if( year == max$year && month == max$month && day > max$day ) next
-      
       cat( "*")
       for( division in divisions )
       {
@@ -86,7 +85,7 @@ for( year in 2000:2025 )
             opponent_elo = coalesce( opponent_elo, 1500 ),
             pwin = elo_to_pwin( elo, opponent_elo ),
             lr  = learning_rate + new_lr_boost * pmax(0,(new_time-total_matches)/new_time),
-            new_elo = elo + (1-momentum_rate) * lr * (win-pwin) + momentum_rate * (elo-old_elo)
+            new_elo = elo + lr * (win-pwin) + momentum_rate * (elo-old_elo)
           )
         
       
@@ -107,7 +106,7 @@ saveRDS( elo_history,  "elo_history.Rdata")
 
 
 
-matches_cache <- readRDS( "matches_cache.Rdata")
+#matches_cache <- readRDS( "matches_cache.Rdata")
 #saveRDS( elo_history, "elo_history.Rdata")
 
 
