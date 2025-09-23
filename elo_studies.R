@@ -280,7 +280,7 @@ picks_by_name <- list(
   
 division = "Makuuchi"
 basho_id = "202509"
-max_day <- 8
+max_day <- 10
 
 match_t = NULL
 
@@ -310,10 +310,14 @@ for( person in names( picks_by_id))
 fantasy_t <- fantasy_t |> group_by( day ) |> 
   summarize( across( names(picks_by_id), sum )) |> 
   mutate( across( names( picks_by_id), cumsum)) |> 
-  pivot_longer( names(picks_by_id), names_to = "name",values_to = "wins")
+  pivot_longer( names(picks_by_id), names_to = "name",values_to = "wins") |> 
+  mutate( match_count = day*5, win_rate = wins/match_count)
 
 ggplot( fantasy_t, aes( x=day, y=wins, color=name)) + geom_line() + geom_point()+
   labs( title="Fantasy Sumo Wins" ) +theme_minimal()
+
+ggplot( fantasy_t, aes( x=day, y=win_rate, color=name)) + geom_line() + geom_point()+
+  labs( title="Fantasy Sumo Win Rate" ) +theme_minimal()
 
 
 map( picks_by_id, \(picks) filter( match_t, rikishiId %in% picks) |> summarize( wins = sum( win )) |> pull( wins ) )
@@ -324,7 +328,7 @@ map( picks_by_id, \(picks) filter( match_t, rikishiId %in% picks) |> summarize( 
 
 # reset some day
 basho_id = "202509"
-for( day in 1:9 )
+for( day in 1:11 )
   map( divisions, \(div) get_matches( basho_id, day, div, T ))
 
 for( day in 1:7 )

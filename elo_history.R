@@ -28,7 +28,7 @@ new_time      = 10 # number of matches
 momentum_rate = 0.3
 
 
-max = list( year = 2025, month=9, day=8)
+max = list( year = 2025, month=9, day=10)
 
 
 for( year in 2000:2025 )

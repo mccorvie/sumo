@@ -5,3 +5,5 @@
 .Ruserdata
 *.html
 calibration/*
+sumo_matches_files/*
+sumo_elo/*
