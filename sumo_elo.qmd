@@ -42,7 +42,7 @@ This webpage explores wrestler performance through [**Elo ratings**](https://en.
 
 The goal is to see how well Elo captures wrestler strength compared to the official banzuke (ranking) system. Elo scores can help gauge the relative strength of rikishi in a given match, and provide a fuller picture of a wrestler's record than a simple win-loss record. Elo can also help track the prowess of a wrestler over time, showing trends in performance.
 
-
+See how Elo scores apply to the [current basho matches](sumo_matches.html) here.
 
 ## Background 
 

@@ -26,7 +26,7 @@ elo_history   <- readRDS( "elo_history.Rdata")
 sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
 #all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
 
-day <- 9
+day <- 11
 
 ```
 
@@ -45,6 +45,8 @@ If you’d like to dive into the math behind it all, check out the [Elo model de
 
 
 ## Elo Trends for `r basho_description(basho_id)`
+
+Each point represents a rikishi's current Elo rating.  The rikishi are organized by banzuke ranking, and color coded by rank name.  The tail above or below the point shows the change in elo over the course of the current tournament.  Mouse over points to see the rikishi name.
 
 ```{r}
 #| echo: false
@@ -70,7 +72,7 @@ pp<- ggplot( banzuke_elo, aes( ordinal_rank, elo, color=rank, text=shikona)) +
   labs( title = paste0("Elo Movement" )) +
   xlab("banzuke rank")
 
-ggplotly(pp, tooltip = "text", width=800 ) |> 
+ggplotly(pp, tooltip = "text", width=600 ) |> 
   layout(
     legend = list(
       orientation = "h",     # horizontal
@@ -98,34 +100,62 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Elo Gap`    = paste( round(elo_mismatch), ifelse( elo_east>=elo_west, "←","→")),
-    `Headshot E` = paste0( "sumo_headshots/", eastShikona, ".jpg"),
-    `Headshot W` = paste0( "sumo_headshots/", westShikona, ".jpg")
+    elo_gap    = paste( round(elo_mismatch), ifelse( elo_east>=elo_west, "←","→")),
+    headshot_east = paste0( "sumo_headshots/", eastShikona, ".jpg"),
+    headshot_west = paste0( "sumo_headshots/", westShikona, ".jpg")
   ) 
 
 prediction_sheet <- match_sheet |> 
-  select( `Match` = matchNo, `Headshot E`, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E`=pwin_east, `Odds E`=odds_east, `Elo Gap`,  `Odds W` = odds_west, `Win Prob W` = pwin_west, `Elo W` = elo_west,`Record W` = record_west,  West = westShikona, `Headshot W` )
+  select( matchNo,headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east, elo_gap,  odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west )
+
+
+#  select( `Match` = matchNo, `Headshot E`, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E`=pwin_east, `Odds E`=odds_east, `Elo Gap`,  `Odds W` = odds_west, `Win Prob W` = pwin_west, `Elo W` = elo_west,`Record W` = record_west,  West = westShikona, `Headshot W` )
 
 
 gt( prediction_sheet) |>
   text_transform(
-    locations = cells_body(columns = c(`Headshot E`, `Headshot W`)),
+    locations = cells_body(columns = c( headshot_east, headshot_west)),
     fn = \(x) local_image( filename = x, height = 40)
   ) |> 
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "15px") |> 
   fmt_number(
-    columns = c(`Elo E`, `Elo W`, `Elo Gap` ),
+    columns = c(`elo_east`, `elo_west`, `elo_gap` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( `Win Prob E`, `Odds E`,  `Win Prob W`, `Odds W` ),
+    columns =  c( `pwin_east`, `odds_east`,  `pwin_west`, `odds_west` ),
     decimals = 2
   ) |> 
   cols_align(
     align = "right",
-    columns = `Elo Gap`   # replace with your column
+    columns = `elo_gap`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east)
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    headshot_east = "",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    odds_east=  "Odds",
+    elo_gap = "Elo Gap", 
+    odds_west = "Odds", 
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    headshot_west = "",
+    westShikona = "Name"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -134,9 +164,11 @@ gt( prediction_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Odds E`, `Elo Gap` )
+      columns = c( `odds_east`, `elo_gap` )
     )
-  )
+  ) 
+
+
 
 ```
 
@@ -154,28 +186,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -184,55 +241,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
-    )
-  )
-
-```
-
-
-### Match Recap - Day `r day=day-1` `r day` 
-
-```{r}
-#| echo: false
-
-match_sheet <- get_match_sheet( basho_id, day )
-
-match_sheet <- match_sheet |> 
-  mutate( 
-    record_east = paste0( wins_east, "-", losses_east),
-    record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
-  ) 
-
-post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
-
-
-gt( post_sheet) |>
-  tab_options(table.width = pct(90)) |> 
-  tab_options(table.font.size = "14px") |> 
-  fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
-    use_seps = F,
-    decimals = 0  # sets the number of decimal places
-  ) |> 
-  fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
-    decimals = 2
-  ) |> 
-  cols_align(
-    align = "center",
-    columns = `Win`   # replace with your column
-  ) |> 
-  tab_style(
-    style = cell_borders(
-      sides = "right",
-      color = "black",
-      weight = px(2)
-    ),
-    locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -249,28 +258,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -279,7 +313,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -296,28 +330,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -326,7 +385,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -343,28 +402,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -373,7 +457,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -390,28 +474,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -420,7 +529,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -437,28 +546,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -467,7 +601,7 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
@@ -484,28 +618,53 @@ match_sheet <- match_sheet |>
   mutate( 
     record_east = paste0( wins_east, "-", losses_east),
     record_west = paste0( wins_west, "-", losses_west),
-    `Win` = ifelse( eastShikona == winnerEn, "←","→"),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
   ) 
 
 post_sheet <- match_sheet |> 
-select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
 
 
 gt( post_sheet) |>
   tab_options(table.width = pct(90)) |> 
   tab_options(table.font.size = "14px") |> 
   fmt_number(
-    columns = c( `Elo W`, `Elo E` ),
+    columns = c( `elo_west`, `elo_east` ),
     use_seps = F,
     decimals = 0  # sets the number of decimal places
   ) |> 
   fmt_number(
-    columns =  c( Surprisal, `Win Prob E`, `Win Prob W`),
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
     decimals = 2
   ) |> 
   cols_align(
     align = "center",
-    columns = `Win`   # replace with your column
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
   ) |> 
   tab_style(
     style = cell_borders(
@@ -514,10 +673,223 @@ gt( post_sheet) |>
       weight = px(2)
     ),
     locations = cells_body(
-      columns = c( `Win Prob E`, `Win`, `Win Prob W` )
+      columns = c( `pwin_east`, `win`, `pwin_west` )
     )
   )
 
 ```
 
+### Match Recap - Day `r day=day-1` `r day` 
+
+```{r}
+#| echo: false
+
+match_sheet <- get_match_sheet( basho_id, day )
+
+match_sheet <- match_sheet |> 
+  mutate( 
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
+  ) 
+
+post_sheet <- match_sheet |> 
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+
+
+gt( post_sheet) |>
+  tab_options(table.width = pct(90)) |> 
+  tab_options(table.font.size = "14px") |> 
+  fmt_number(
+    columns = c( `elo_west`, `elo_east` ),
+    use_seps = F,
+    decimals = 0  # sets the number of decimal places
+  ) |> 
+  fmt_number(
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
+    decimals = 2
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
+  ) |> 
+  tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "black",
+      weight = px(2)
+    ),
+    locations = cells_body(
+      columns = c( `pwin_east`, `win`, `pwin_west` )
+    )
+  )
+
+```
+### Match Recap - Day `r day=day-1` `r day` 
+
+```{r}
+#| echo: false
+
+match_sheet <- get_match_sheet( basho_id, day )
+
+match_sheet <- match_sheet |> 
+  mutate( 
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
+  ) 
+
+post_sheet <- match_sheet |> 
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+
+
+gt( post_sheet) |>
+  tab_options(table.width = pct(90)) |> 
+  tab_options(table.font.size = "14px") |> 
+  fmt_number(
+    columns = c( `elo_west`, `elo_east` ),
+    use_seps = F,
+    decimals = 0  # sets the number of decimal places
+  ) |> 
+  fmt_number(
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
+    decimals = 2
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
+  ) |> 
+  tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "black",
+      weight = px(2)
+    ),
+    locations = cells_body(
+      columns = c( `pwin_east`, `win`, `pwin_west` )
+    )
+  )
+
+```
+### Match Recap - Day `r day=day-1` `r day` 
+
+```{r}
+#| echo: false
+
+match_sheet <- get_match_sheet( basho_id, day )
+
+match_sheet <- match_sheet |> 
+  mutate( 
+    record_east = paste0( wins_east, "-", losses_east),
+    record_west = paste0( wins_west, "-", losses_west),
+    win = ifelse( eastShikona == winnerEn, "←","→"),
+  ) 
+
+post_sheet <- match_sheet |> 
+select( matchNo, eastShikona, record_east, elo_east, pwin_east, win,  westShikona, record_west, elo_west, pwin_west, surprisal)
+
+
+#select( `Match` = matchNo, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E` = pwin_east, Win,  West = westShikona, `Record W` = record_west,  `Elo W` = elo_west, `Win Prob W` = pwin_west, Surprisal = surprisal)
+
+
+gt( post_sheet) |>
+  tab_options(table.width = pct(90)) |> 
+  tab_options(table.font.size = "14px") |> 
+  fmt_number(
+    columns = c( `elo_west`, `elo_east` ),
+    use_seps = F,
+    decimals = 0  # sets the number of decimal places
+  ) |> 
+  fmt_number(
+    columns =  c( surprisal, `pwin_east`, `pwin_west`),
+    decimals = 2
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = `win`   # replace with your column
+  ) |> 
+  tab_spanner(
+    label = "East",
+    columns = c( eastShikona, record_east, elo_east, pwin_east )
+  ) |>
+  tab_spanner(
+    label = "West",
+    columns = c( westShikona, record_west, elo_west, pwin_west)
+    
+  ) |>
+  cols_label(
+    matchNo = "Match",
+    eastShikona = "Name",
+    record_east = "Record",
+    elo_east = "Elo", 
+    pwin_east = "Win Prob", 
+    win = "Win",    
+    westShikona = "Name",
+    pwin_west = "Win Prob", 
+    elo_west = "Elo" ,
+    record_west = "Record" ,  
+    surprisal = "Surprisal"
+  ) |> 
+  tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "black",
+      weight = px(2)
+    ),
+    locations = cells_body(
+      columns = c( `pwin_east`, `win`, `pwin_west` )
+    )
+  )
+
+```
 
