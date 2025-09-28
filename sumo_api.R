@@ -12,7 +12,7 @@ library( tidyverse )
 library(httr)
 library(jsonlite)
 
-divisions <- c( "makuuchi", "juryo", "makushita" )
+divisions <- c( "makuuchi", "juryo", "makushita", "sandanme" )
 
 months <- seq(1,11, 2)
 days   <- 1:15

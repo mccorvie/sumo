@@ -28,10 +28,11 @@ new_time      = 10 # number of matches
 momentum_rate = 0.3
 
 
-max = list( year = 2025, month=9, day=10)
+max = list( year = 2025, month=9, day=15)
 
+divisions
 
-for( year in 2000:2025 )
+for( year in 1990:2025 )
   for( month in months )
   {
     cat( "\n", get_basho_id( year, month ), " " )
@@ -103,10 +104,15 @@ for( year in 2000:2025 )
 
 saveRDS(matches_cache, "matches_cache.Rdata")
 saveRDS( elo_history,  "elo_history.Rdata")
+# 
+# names(matches_cache) |> keep( \(x) str_detect( x,".*anme"))
+# 
+# #matches_cache <- readRDS( "matches_cache.Rdata")
+# #saveRDS( elo_history, "elo_history.Rdata")
+# matches_cache[["200001-01-makuuchi"]]$torikumi
+# 
+# 
+# nn <- names( matches_cache ) |> sort()
+# kimirite <- tibble( )
 
-
-
-#matches_cache <- readRDS( "matches_cache.Rdata")
-#saveRDS( elo_history, "elo_history.Rdata")
-
-
+get_matches( "202509", 15, "Makuuchi" )
