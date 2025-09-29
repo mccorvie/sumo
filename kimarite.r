@@ -36,7 +36,6 @@ kimarite |> select( rikishiId, total_win, total_loss)
 
 
 ## kmeans analysis
-
 kmeans_res <- kmeans( kimarite[,c(-1,-ncol(kimarite)+1, -ncol(kimarite))], centers=3, nstart=25)
 
 kmeans_res
@@ -96,12 +95,13 @@ kimarite_factor = factor( )
   
 ## pca analysis
 
+kimarite
 
+pca_res <- PCA( kimarite[,c(-1,-ncol(kimarite)+1, -ncol(kimarite))], scale.unit = F, graph = F)
 
-res <- PCA( kimarite[,c(-1,-ncol(kimarite)+1, -ncol(kimarite))], scale.unit = F, graph = F)
-
-fviz_pca_ind(res, habillage = kmeans_res$cluster, addEllipses = TRUE)
-fviz_pca_var(res)
+fviz_pca_ind(pca_res, addEllipses = TRUE)
+fviz_pca_ind(pca_res, habillage = factor(kmeans_res$cluster), addEllipses = TRUE)
+fviz_pca_var(pca_res)
 
 #fviz_pca_ind() → individuals (points, samples)
 #fviz_pca_var() → variables (loadings)
