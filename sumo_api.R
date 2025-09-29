@@ -66,6 +66,47 @@ prior_basho <- \( basho_id )
   sprintf( "%d%02d", prev_year, prev_month)  
 }
 
+
+
+get_faceoff_table <- \( basho_id, day, division = divisions )
+{
+  out <- NULL
+  for( division in divisions )
+  {
+    torikumi   <- get_matches( basho_id, day, division ) 
+    if( is.null( torikumi$torikumi ))
+    {
+      warning( "No results for ", basho_id, " day ", day, " ", division  )
+      next
+    }
+    
+    torikumi_t <- torikumi$torikumi |> tibble()
+    
+    tt <- torikumi_t |> pull( matchNo ) |> table() 
+    if( any( tt>1 )) 
+    {
+      warning( "Duplicate matches in ", basho_id, " day ", day, " ", division  )
+      next
+    }
+    
+    east <- torikumi_t |> 
+      mutate( win = ifelse( winnerId == 0, NA, winnerId == eastId )) |> 
+      select( bashoId, division, day, matchNo, rikishiId = eastId, opponentId = westId, rank = eastRank, opponentRank = westRank, win, kimarite )
+    
+    west <- torikumi_t |> 
+      mutate( win = ifelse( winnerId == 0, NA, winnerId == westId )) |> 
+      select( bashoId, division, day, matchNo, rikishiId = westId, opponentId = eastId, rank = westRank, opponentRank = eastRank, win, kimarite )
+    out <- bind_rows( out, east, west )    
+  }  
+  out
+}
+
+basho_faceoff <- \( basho_id, max_day=15 )
+{
+  map( 1:max_day, \(day) get_faceoff_table( basho_id, day )) 
+}
+
+
 basho_description <- \( basho_id )
 {
   year  = as.numeric( str_sub( basho_id, 1,4))

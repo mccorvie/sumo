@@ -266,28 +266,3 @@ matches0 |>
   select( eastShikona, elo_east, pwin_east, record_east, westShikona, elo_west, pwin_west, record_west, winnerEn, surprisal) |> 
   print( n=35)
 
-
-##
-##  Reset cache for some day (after results are in, e.g, )
-##
-
-# reset some day
-
-basho_id = "202509"
-for( day in 1:15 )
-  map( divisions, \(div) get_matches( basho_id, day, div, T ))
-
-for( day in 1:7 )
-  for( division in divisions )
-  {
-    torikumi   <- get_matches( basho_id, day, division ) 
-    torikumi_t <- torikumi$torikumi |> tibble()
-    
-    tt <- torikumi_t |> pull( matchNo ) |> table() 
-    if( any( tt>1 )) 
-      cat( "!!", division, day, "duplicates\n")
-  }
-
-
-match_sheet <- get_match_sheet( "202505",  16 )
-match_sheet
