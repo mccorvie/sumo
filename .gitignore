@@ -6,4 +6,4 @@
 *.html
 calibration/*
 sumo_matches_files/*
-sumo_elo/*
+sumo_elo_files/*

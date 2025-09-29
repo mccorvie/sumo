@@ -18,7 +18,7 @@ library(plotly)
 library(gt)
 library(DT)
 source( "sumo_api.R" )
-source( "elo_functions.R")
+source( "elo_reports.R")
 
 basho_id = current_basho()
 matches_cache <- readRDS( "matches_cache.Rdata")
