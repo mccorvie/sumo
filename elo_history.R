@@ -6,11 +6,10 @@
 library( tidyverse )
 library(progress)
 source( "sumo_api.R" )
-source( "elo_functions.R" )
 
 options(nwarnings = 1000)  
 
-max_day = 15
+max_day = 3
 
 years <- 1990:2025
 
@@ -19,9 +18,18 @@ past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, mon
 
 # refresh cache for current basho
 # this is to pick up data updates, such as match results from yesterday
-for( day in 1:max_day )
-  div_matches <- map( divisions, \(div) get_matches( current_basho(), day, div, T ))
+div_matches <- map( 1:max_day, \(day) map( divisions, \(div) get_matches( current_basho(), day, div, T )))
 saveRDS( matches_cache, "matches_cache.Rdata")
+
+makuuchi_matches <- map( 1:max_day, \(day) get_matches( current_basho(), day, "makuuchi" ))
+
+rikishi <- map( makuuchi_matches, \( match ) c( match$torikumi$eastShikona, match$torikumi$westShikona)) |> 
+  unlist() |> unique()
+
+headshot_exists <- file.exists( paste0( "sumo_headshots/", rikishi, ".jpg"))
+
+if( !all( headshot_exists ))
+  cat( "!!! Headshot missing for: ", paste( rikishi[!headshot_exists], collapse = " "), "\n")
 
 
 faceoff_list  <- c( list_flatten( map( past_bashos, basho_faceoff, .progress=T )), basho_faceoff( current_basho(), max_day ))
@@ -30,7 +38,6 @@ faceoff_list <- keep( faceoff_list, \(x) !is.null( x ))
 saveRDS( faceoff_list, "faceoff_list.Rdata")
 
 #faceoff_list <- readRDS( "faceoff_list.Rdata" )
-
 
 
 current_elo <- tibble( 
@@ -86,4 +93,8 @@ saveRDS( elo_history,  "elo_history.Rdata")
 
 
 
+# to do ideas
+#  1) elo of each banzuke rank
+#  2) higher momentum + higher learning rate?
+#
 
