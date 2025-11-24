@@ -9,12 +9,14 @@ source( "sumo_api.R" )
 
 options(nwarnings = 1000)  
 
-max_day = 3
-
+max_day = 15
 years <- 1990:2025
 
+
 past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, month) )) |> 
-  unlist() |> keep( \(basho) basho < current_basho())
+  unlist() |> keep( \(basho) basho < current_basho() & basho != "202005" & basho != "201103" ) 
+
+#  202005 canceled because of covid,  201103 canceled because of Fukushima 
 
 # refresh cache for current basho
 # this is to pick up data updates, such as match results from yesterday
