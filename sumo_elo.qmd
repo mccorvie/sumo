@@ -30,6 +30,10 @@ sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
 
 ```
 
+## Latest Basho Elo Rankings
+
+For rankings and match forecasts for the latest tournament, go to [**this page**](sumo_matches.html)
+
 
 ![](elo_yokozuna.png){fig-align="center" width=60%}
 
@@ -38,11 +42,10 @@ sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
 
 Sumo, Japan’s national sport, has centuries of tradition and a highly structured system of competition.
 
-This webpage explores wrestler performance through [**Elo ratings**](https://en.wikipedia.org/wiki/Elo_rating_system), a method commonly used in chess and video games to track relative skill over time.
+This webpage explores wrestler performance through [Elo ratings](https://en.wikipedia.org/wiki/Elo_rating_system), a method commonly used in chess and video games to track relative skill over time.
 
 The goal is to see how well Elo captures wrestler strength compared to the official banzuke (ranking) system. Elo scores can help gauge the relative strength of rikishi in a given match, and provide a fuller picture of a wrestler's record than a simple win-loss record. Elo can also help track the prowess of a wrestler over time, showing trends in performance.
 
-See how Elo scores apply to the [current basho matches](sumo_matches.html) here.
 
 ## Background 
 
