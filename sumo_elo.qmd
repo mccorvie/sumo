@@ -240,7 +240,7 @@ Overall the agreement is pretty good, though the line $y=x$ doesn't always fall 
 
 The code for this project lives at [https://github.com/mccorvie/sumo](https://github.com/mccorvie/sumo).
 
-I'm [Ryan McCorvie](https://mccorvie.org), the author of this analysis.  Feel free to contact me at [ryan@martingael.ai](mailto:ryan@martingale.ai).
+I'm [Ryan McCorvie](https://mccorvie.org), the author of this analysis.  Feel free to contact me at [ryan@martingale.ai](mailto:ryan@martingale.ai).
 
 Match data is provided by the amazing resource [Sumo API](https://www.sumo-api.com/).  Consider donating money to support that site!
 
