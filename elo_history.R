@@ -9,8 +9,8 @@ source( "sumo_api.R" )
 
 options(nwarnings = 1000)  
 
-max_day = 15
-years <- 1990:2025
+max_day = day_number(today(), current_basho())
+years <- 1990:2026
 
 
 past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, month) )) |> 

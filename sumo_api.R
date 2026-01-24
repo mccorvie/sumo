@@ -8,6 +8,7 @@
 # online sources for sumo data
 # https://sumodb.sumogames.de/Rikishi.aspx
 
+library(glue) 
 library( tidyverse )
 library(httr)
 library(jsonlite)
@@ -66,7 +67,23 @@ prior_basho <- \( basho_id )
   sprintf( "%d%02d", prev_year, prev_month)  
 }
 
+basho_info <- \(basho_id)
+{
+  response <- GET( glue("https://www.sumo-api.com/api/basho/{basho_id}" ))
+  basho_data <- fromJSON(rawToChar(response$content))
+  basho_data$startDate <- as_date( basho_data$startDate)
+  basho_data$endDate   <- as_date( basho_data$endDate)
+  basho_data
+}
 
+day_number <- \(date, basho_id)
+{
+  date=today()
+  basho_id= "202601"
+  basho_data <- basho_info( basho_id )
+  diff <- as.numeric( date - basho_data$startDate, units = "days")+1
+  return( max( min( diff, 15 ), 0 ))
+}
 
 get_faceoff_table <- \( basho_id, day, division = divisions )
 {
@@ -186,3 +203,5 @@ basho_sumo_rank <- \(basho_id = current_basho())
   basho_rikishi_ranks[[ basho_id]] <<- banzuke_rank
   banzuke_rank
 }
+
+
