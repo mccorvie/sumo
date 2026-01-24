@@ -4,13 +4,21 @@
 ##
 
 library( tidyverse )
-library(progress)
+library( progress )
 source( "sumo_api.R" )
+source( "elo_reports.R")
 
 options(nwarnings = 1000)  
 
 max_day = day_number(today(), current_basho())
 years <- 1990:2026
+
+if( Sys.getenv("SUMO_CACHE") == "1" )
+{
+  cat( "loading sumo match cache...\n")
+  matches_cache <- readRDS( "matches_cache.Rdata")
+  sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
+}
 
 
 past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, month) )) |> 
