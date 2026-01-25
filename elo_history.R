@@ -11,6 +11,8 @@ source( "elo_reports.R")
 options(nwarnings = 1000)  
 
 max_day = day_number(today(), current_basho())
+
+cat( "Calculating Elo history up to day ", max_day, "\n\n" )
 years <- 1990:2026
 
 if( Sys.getenv("SUMO_CACHE") == "1" )
@@ -28,7 +30,7 @@ past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, mon
 
 # refresh cache for current basho
 # this is to pick up data updates, such as match results from yesterday
-div_matches <- map( 1:max_day, \(day) map( divisions, \(div) get_matches( current_basho(), day, div, T )))
+div_matches <- map( 1:min(15,max_day+1), \(day) map( divisions, \(div) get_matches( current_basho(), day, div, T )))
 saveRDS( matches_cache, "matches_cache.Rdata")
 
 makuuchi_matches <- map( 1:max_day, \(day) get_matches( current_basho(), day, "makuuchi" ))
