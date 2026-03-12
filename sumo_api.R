@@ -78,8 +78,6 @@ basho_info <- \(basho_id)
 
 day_number <- \(date, basho_id)
 {
-  date=today()
-  basho_id= "202601"
   basho_data <- basho_info( basho_id )
   diff <- as.numeric( date - basho_data$startDate, units = "days")+1
   return( max( min( diff, 15 ), 0 ))

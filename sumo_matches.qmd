@@ -29,7 +29,6 @@ sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
 
 day <- day_number(today(), current_basho())+1
 
-
 ```
 
 Welcome to the rikishi Elo scoreboard! This page gives you a quick way to see who’s looking strongest in the current basho.
@@ -89,6 +88,7 @@ ggplotly(pp, tooltip = "text", width=600 ) |>
 
 ```{r}
 #| echo: false
+
 
 match_sheet <- get_match_sheet( basho_id,  day )
 #match_sheet <- filter( match_sheet, winnerId==0)
