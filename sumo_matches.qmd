@@ -142,7 +142,7 @@ if( day > 15 ) {
       record                = "Record",
       final_elo             = "Final Elo",
       delta_elo             = "Δ Elo",
-      actual_minus_expected = "Actual − Expected"
+      actual_minus_expected = "Actual vs Expected wins"
     ) |>
     cols_hide( actual_wins ) |>
     tab_style(
