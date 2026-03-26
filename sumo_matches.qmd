@@ -1,6 +1,7 @@
 ---
 title: "🎌 Elo on the Dohyō 🎌"
 author: "Ryan McCorvie"
+date: "`r Sys.time()`"
 format: 
   html:
     page-layout: full
@@ -24,8 +25,7 @@ basho_id = current_basho()
 
 matches_cache <- readRDS( "matches_cache.Rdata")
 elo_history   <- readRDS( "elo_history.Rdata")
-sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
-#all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
+sumo_name_t   <- all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
 
 day <- day_number(today(), current_basho())+1
 
@@ -82,88 +82,184 @@ ggplotly(pp, tooltip = "text", width=600 ) |>
 
 ```
 
-## Today’s Rikishi Power Meter
+## `r if(day > 15) "Tournament Summary" else "Today’s Rikishi Power Meter"`
 
-### Head-to-Head Odds - Day `r day`
+### `r if(day > 15) paste("Final Standings —", basho_description(basho_id)) else paste("Head-to-Head Odds - Day", day)`
 
 ```{r}
 #| echo: false
 
+if( day > 15 ) {
 
-match_sheet <- get_match_sheet( basho_id,  day )
-#match_sheet <- filter( match_sheet, winnerId==0)
-
-match_sheet <- match_sheet |> 
-  mutate( 
-    record_east = paste0( wins_east, "-", losses_east),
-    record_west = paste0( wins_west, "-", losses_west),
-    elo_gap    = paste( round(elo_mismatch), ifelse( elo_east>=elo_west, "←","→")),
-    headshot_east = paste0( "sumo_headshots/", eastShikona, ".jpg"),
-    headshot_west = paste0( "sumo_headshots/", westShikona, ".jpg")
-  ) 
-
-prediction_sheet <- match_sheet |> 
-  select( matchNo,headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east, elo_gap,  odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west )
-
-
-#  select( `Match` = matchNo, `Headshot E`, East = eastShikona, `Record E` = record_east, `Elo E` = elo_east, `Win Prob E`=pwin_east, `Odds E`=odds_east, `Elo Gap`,  `Odds W` = odds_west, `Win Prob W` = pwin_west, `Elo W` = elo_west,`Record W` = record_west,  West = westShikona, `Headshot W` )
-
-
-gt( prediction_sheet) |>
-  text_transform(
-    locations = cells_body(columns = c( headshot_east, headshot_west)),
-    fn = \(x) local_image( filename = x, height = 40)
-  ) |> 
-  tab_options(table.width = pct(90)) |> 
-  tab_options(table.font.size = "15px") |> 
-  fmt_number(
-    columns = c(`elo_east`, `elo_west`, `elo_gap` ),
-    use_seps = F,
-    decimals = 0  # sets the number of decimal places
-  ) |> 
-  fmt_number(
-    columns =  c( `pwin_east`, `odds_east`,  `pwin_west`, `odds_west` ),
-    decimals = 2
-  ) |> 
-  cols_align(
-    align = "right",
-    columns = `elo_gap`   # replace with your column
-  ) |> 
-  tab_spanner(
-    label = "East",
-    columns = c( headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east)
-  ) |>
-  tab_spanner(
-    label = "West",
-    columns = c( odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west)
-    
-  ) |>
-  cols_label(
-    matchNo = "Match",
-    headshot_east = "",
-    eastShikona = "Name",
-    record_east = "Record",
-    elo_east = "Elo", 
-    pwin_east = "Win Prob", 
-    odds_east=  "Odds",
-    elo_gap = "Elo Gap", 
-    odds_west = "Odds", 
-    pwin_west = "Win Prob", 
-    elo_west = "Elo" ,
-    record_west = "Record" ,  
-    headshot_west = "",
-    westShikona = "Name"
-  ) |> 
-  tab_style(
-    style = cell_borders(
-      sides = "right",
-      color = "black",
-      weight = px(2)
-    ),
-    locations = cells_body(
-      columns = c( `odds_east`, `elo_gap` )
+  tournament_stats <- elo_history |>
+    filter( bashoId == basho_id, !is.na(win) ) |>
+    group_by( rikishiId ) |>
+    summarize(
+      final_elo             = last(new_elo),
+      actual_wins           = sum(win),
+      expected_wins         = sum(pwin),
+      matches               = n(),
+      .groups = "drop"
+    ) |>
+    mutate(
+      actual_minus_expected = actual_wins - expected_wins,
+      record                = paste0( actual_wins, "-", matches - actual_wins )
     )
-  )
+
+  pre_elo <- elo_as_of( basho_id, 1 ) |> select( rikishiId, pre_elo = elo )
+
+  summary_table <- banzuke_rank |>
+    left_join( sumo_name_t,    by = "rikishiId" ) |>
+    left_join( pre_elo,        by = "rikishiId" ) |>
+    left_join( tournament_stats, by = "rikishiId" ) |>
+    mutate(
+      delta_elo = final_elo - coalesce( pre_elo, 1500 ),
+      headshot  = paste0( "sumo_headshots/", shikona, ".jpg" )
+    ) |>
+    select( headshot, shikona, rank_name, record, actual_wins, final_elo, delta_elo, actual_minus_expected )
+
+  gt( summary_table ) |>
+    text_transform(
+      locations = cells_body(columns = headshot),
+      fn = \(x) local_image( filename = x, height = 40)
+    ) |>
+    tab_options(table.width = pct(90)) |>
+    tab_options(table.font.size = "15px") |>
+    fmt_number(
+      columns  = c( final_elo, delta_elo ),
+      use_seps = FALSE,
+      decimals = 0
+    ) |>
+    fmt_number(
+      columns  = actual_minus_expected,
+      decimals = 1,
+      force_sign = TRUE
+    ) |>
+    cols_label(
+      headshot              = "",
+      shikona               = "Name",
+      rank_name             = "Rank",
+      record                = "Record",
+      final_elo             = "Final Elo",
+      delta_elo             = "Δ Elo",
+      actual_minus_expected = "Actual − Expected"
+    ) |>
+    cols_hide( actual_wins ) |>
+    tab_style(
+      style = cell_text( color = "darkgreen", weight = "bold"),
+      locations = cells_body(
+        columns = c( record, delta_elo, actual_minus_expected ),
+        rows    = actual_wins >= 8
+      )
+    ) |>
+    tab_style(
+      style = cell_text( color = "darkred", weight = "bold"),
+      locations = cells_body(
+        columns = c( record, delta_elo, actual_minus_expected ),
+        rows    = actual_wins < 8
+      )
+    ) |>
+    tab_style(
+      style = cell_text( color = "darkgreen", weight = "bold"),
+      locations = cells_body(
+        columns = delta_elo,
+        rows    = delta_elo > 0 & actual_wins < 8
+      )
+    ) |>
+    tab_style(
+      style = cell_text( color = "darkred", weight = "bold"),
+      locations = cells_body(
+        columns = delta_elo,
+        rows    = delta_elo < 0 & actual_wins >= 8
+      )
+    ) |>
+    tab_style(
+      style = cell_text( color = "darkgreen", weight = "bold"),
+      locations = cells_body(
+        columns = actual_minus_expected,
+        rows    = actual_minus_expected > 0 & actual_wins < 8
+      )
+    ) |>
+    tab_style(
+      style = cell_text( color = "darkred", weight = "bold"),
+      locations = cells_body(
+        columns = actual_minus_expected,
+        rows    = actual_minus_expected < 0 & actual_wins >= 8
+      )
+    )
+
+} else {
+
+  match_sheet <- get_match_sheet( basho_id,  day )
+
+  match_sheet <- match_sheet |>
+    mutate(
+      record_east = paste0( wins_east, "-", losses_east),
+      record_west = paste0( wins_west, "-", losses_west),
+      elo_gap    = paste( round(elo_mismatch), ifelse( elo_east>=elo_west, "←","→")),
+      headshot_east = paste0( "sumo_headshots/", eastShikona, ".jpg"),
+      headshot_west = paste0( "sumo_headshots/", westShikona, ".jpg")
+    )
+
+  prediction_sheet <- match_sheet |>
+    select( matchNo,headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east, elo_gap,  odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west )
+
+  gt( prediction_sheet) |>
+    text_transform(
+      locations = cells_body(columns = c( headshot_east, headshot_west)),
+      fn = \(x) local_image( filename = x, height = 40)
+    ) |>
+    tab_options(table.width = pct(90)) |>
+    tab_options(table.font.size = "15px") |>
+    fmt_number(
+      columns = c(`elo_east`, `elo_west`, `elo_gap` ),
+      use_seps = F,
+      decimals = 0
+    ) |>
+    fmt_number(
+      columns =  c( `pwin_east`, `odds_east`,  `pwin_west`, `odds_west` ),
+      decimals = 2
+    ) |>
+    cols_align(
+      align = "right",
+      columns = `elo_gap`
+    ) |>
+    tab_spanner(
+      label = "East",
+      columns = c( headshot_east, eastShikona, record_east, elo_east, pwin_east, odds_east)
+    ) |>
+    tab_spanner(
+      label = "West",
+      columns = c( odds_west, pwin_west, elo_west, record_west,  westShikona, headshot_west)
+    ) |>
+    cols_label(
+      matchNo = "Match",
+      headshot_east = "",
+      eastShikona = "Name",
+      record_east = "Record",
+      elo_east = "Elo",
+      pwin_east = "Win Prob",
+      odds_east=  "Odds",
+      elo_gap = "Elo Gap",
+      odds_west = "Odds",
+      pwin_west = "Win Prob",
+      elo_west = "Elo" ,
+      record_west = "Record" ,
+      headshot_west = "",
+      westShikona = "Name"
+    ) |>
+    tab_style(
+      style = cell_borders(
+        sides = "right",
+        color = "black",
+        weight = px(2)
+      ),
+      locations = cells_body(
+        columns = c( `odds_east`, `elo_gap` )
+      )
+    )
+
+}
 
 ```
 
@@ -183,5 +279,3 @@ gt( prediction_sheet) |>
   }
 
 ```
-
-

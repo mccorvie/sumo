@@ -15,12 +15,16 @@ max_day = day_number(today(), current_basho())
 cat( "Calculating Elo history up to day ", max_day, "\n\n" )
 years <- 1990:2026
 
+# run these to blow away the cache
+# rm(all_matches_cache)
+
+sumo_name_t <- all_rikishi(active=F) |> select( rikishiId = id, shikona = shikonaEn )
+
 if( Sys.getenv("SUMO_CACHE") == "1" )
 {
   cat( "loading sumo match cache...\n")
   matches_cache <- readRDS( "matches_cache.Rdata")
-  sumo_name_t   <- readRDS( "sumo_name_t.Rdata")
-}
+} 
 
 
 past_bashos <- map( years, \(year) map( months, \(month) get_basho_id( year, month) )) |> 
@@ -41,7 +45,7 @@ rikishi <- map( makuuchi_matches, \( match ) c( match$torikumi$eastShikona, matc
 headshot_exists <- file.exists( paste0( "sumo_headshots/", rikishi, ".jpg"))
 
 if( !all( headshot_exists ))
-  cat( "!!! Headshot missing for: ", paste( rikishi[!headshot_exists], collapse = " "), "\n")
+  cat( "!!! Headshot missing for: ", paste( rikishi[!headshot_exists], collapse = ", "), "\n")
 
 
 faceoff_list  <- c( list_flatten( map( past_bashos, basho_faceoff, .progress=T )), basho_faceoff( current_basho(), max_day ))

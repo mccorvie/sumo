@@ -141,27 +141,39 @@ active_rikishi <- \()
   active_rikishi_cache
 }
 
+url_option_string <- \(options)
+{
+  if( is.null(options) || length( options)==0)
+    return( "" )
+  options_str <- paste0( names( options), "=", options)
+  paste0( "?", paste0( options_str, collapse="&"))
+}
+
+
 # all_rikishi
 
-all_rikishi <- \()
+all_rikishi <- \(active=T)
 {
-  if( exists( "all_rikishi_cache"))
-    return( all_rikishi_cache )
-  
-  qq  <- GET(paste0(base_url, "/api/rikishis" ))
+  options = list()
+  if( !active )
+    options$intai = "true"
+
+  qq  <- GET( paste0(base_url, "/api/rikishis", url_option_string(options )) )
   rr  <- fromJSON(rawToChar(qq$content))
   total <- rr$total
-  skip  <- 0
-  limit <- 1000
-  all_rikishi_cache <<- NULL
+
+  skip  <- 1000
+  all_rikishi_cache <<- tibble( rr$records )
   while( skip < total) 
   {
-    qq  <- GET(paste0(base_url, "/api/rikishis?intai=true&skip=", skip, "&limit=", limit ))
+    options$skip = skip
+    options$limit = 1000
+    qq  <- GET(paste0(base_url, "/api/rikishis", url_option_string( options)))
     rr  <- fromJSON(rawToChar(qq$content))
     all_rikishi_cache <<- bind_rows( all_rikishi_cache, tibble( rr$records ))
-    skip <- skip + limit
+    skip <- skip + options$limit
   }  
-  
+
   all_rikishi_cache
 }
 

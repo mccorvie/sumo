@@ -119,7 +119,7 @@ elo_to_pwin( 50,0)  # 4-to-3
 ##
 
 #rm(all_rikishi_cache)
-sumo_name_t <- all_rikishi() |> select( rikishiId = id, shikona = shikonaEn )
+sumo_name_t <- all_rikishi(active=F) |> select( rikishiId = id, shikona = shikonaEn )
 #saveRDS( sumo_name_t,  "sumo_name_t.Rdata")
 
 current_elo1 <- current_elo |> left_join( sumo_name_t, by="rikishiId")
