@@ -16,7 +16,7 @@ cat( "Calculating Elo history up to day ", max_day, "\n\n" )
 years <- 1990:2026
 
 # run these to blow away the cache
-# rm(all_matches_cache)
+# rm(matches_cache)
 
 sumo_name_t <- all_rikishi(active=F) |> select( rikishiId = id, shikona = shikonaEn )
 
@@ -106,8 +106,6 @@ for( idx in seq_along( faceoff_list ))
 
 elo_history <- bind_rows( elo_history )
 saveRDS( elo_history,  "elo_history.Rdata")
-
-
 
 # to do ideas
 #  1) elo of each banzuke rank

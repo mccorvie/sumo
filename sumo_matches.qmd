@@ -7,7 +7,7 @@ format:
     page-layout: full
     include-after-body: 
       file: googletag.html
-editor: visual
+editor: source
 ---
 
 ```{r}
