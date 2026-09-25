@@ -16,7 +16,7 @@ elo_as_of <- \(basho_id, day)
     arrange( bashoId, day ) |> 
     group_by( rikishiId ) |> 
     summarize( 
-      elo = last(elo),
+      elo = last(new_elo),
       total_matches = last(total_matches),
       total_wins = last( total_wins)
     ) |> 
